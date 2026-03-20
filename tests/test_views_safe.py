@@ -15,6 +15,67 @@ from tick_mcp.models import Project, ProjectData, Task
 
 @pytest.mark.unit
 class TestReadViews:
+    def test_query_projects_accepts_single_string_filters(self, monkeypatch):
+        captured = {}
+
+        class FakeService:
+            def query_projects(self, **kwargs):
+                captured.update(kwargs)
+                return {"count": 0, "items": []}
+
+        monkeypatch.setattr(read, "_query_service", lambda: FakeService())
+        read.query_projects(folder_names="🎓 X", folder_ids="folder-1", kinds="TASK")
+
+        assert captured["folder_names"] == ["🎓 X"]
+        assert captured["folder_ids"] == ["folder-1"]
+        assert captured["kinds"] == ["TASK"]
+
+    def test_query_tasks_accepts_single_string_filters(self, monkeypatch):
+        captured = {}
+
+        class FakeService:
+            def query_tasks(self, spec):
+                captured["spec"] = spec
+                return {"count": 0, "items": []}
+
+        monkeypatch.setattr(read, "_query_service", lambda: FakeService())
+        read.query_tasks(
+            project_names="Agenda",
+            folder_names="🎓 X",
+            tags="exam",
+            search_fields="title",
+        )
+
+        spec = captured["spec"]
+        assert spec.project_names == ["Agenda"]
+        assert spec.folder_names == ["🎓 X"]
+        assert spec.tags == ["exam"]
+        assert spec.search_fields == ["title"]
+
+    def test_query_agenda_accepts_single_string_filters(self, monkeypatch):
+        captured = {}
+
+        class FakeService:
+            def query_agenda(self, **kwargs):
+                captured.update(kwargs)
+                return {"count": 0, "items": []}
+
+        monkeypatch.setattr(read, "_query_service", lambda: FakeService())
+        read.query_agenda(
+            from_dt="2026-03-01T00:00:00",
+            to_dt="2026-03-31T23:59:59",
+            folder_names="🎓 X",
+            project_names="📅 Agenda",
+            tags="exam",
+            search_fields="title",
+        )
+
+        spec = captured["spec"]
+        assert spec.folder_names == ["🎓 X"]
+        assert spec.project_names == ["📅 Agenda"]
+        assert spec.tags == ["exam"]
+        assert spec.search_fields == ["title"]
+
     def test_tasks_of_today_delegates_to_query_agenda(self, monkeypatch):
         captured = {}
 

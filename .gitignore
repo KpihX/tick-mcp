@@ -14,3 +14,9 @@ wheels/
 
 # Debug logs (ticktick-admin session refresh)
 logs/
+
+# Agent Architecture [GEMINI]
+.agent/
+AGENTS.md
+CLAUDE.md
+GEMINI.md

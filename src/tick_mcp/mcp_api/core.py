@@ -3,7 +3,7 @@ Shared MCP server core: FastMCP instance, catalog, and common helpers.
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Optional, TypeAlias
 
 from mcp.server.fastmcp import FastMCP
 
@@ -14,6 +14,8 @@ from ..services.query_presets import QueryPresetStore
 from ..services.query import TaskFilterSpec, TickTickQueryService
 
 mcp = FastMCP(SERVER_NAME)
+
+StrListArg: TypeAlias = Optional[list[str] | str]
 
 TOOL_CATALOG = {
     "📋 Projects (V1)": {
@@ -234,18 +236,28 @@ def _preset_store() -> QueryPresetStore:
     return QueryPresetStore(STATE_DIRECTORY)
 
 
+def _normalize_str_list(value: StrListArg) -> Optional[list[str]]:
+    """Normalize string-or-list inputs used by multi-value query filters."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        cleaned = value.strip()
+        return [cleaned] if cleaned else []
+    return [item for item in value if isinstance(item, str) and item.strip()]
+
+
 def _make_task_filter_spec(
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     tag_mode: str = "any",
     text_query: Optional[str] = None,
     keyword_mode: str = "any",
     regex: Optional[str] = None,
     exclude_regex: Optional[str] = None,
-    search_fields: Optional[list[str]] = None,
+    search_fields: StrListArg = None,
     due_from: Optional[str] = None,
     due_to: Optional[str] = None,
     start_from: Optional[str] = None,
@@ -270,17 +282,17 @@ def _make_task_filter_spec(
     descending: bool = False,
 ) -> TaskFilterSpec:
     return TaskFilterSpec(
-        project_ids=project_ids,
-        project_names=project_names,
-        folder_ids=folder_ids,
-        folder_names=folder_names,
-        tags=tags,
+        project_ids=_normalize_str_list(project_ids),
+        project_names=_normalize_str_list(project_names),
+        folder_ids=_normalize_str_list(folder_ids),
+        folder_names=_normalize_str_list(folder_names),
+        tags=_normalize_str_list(tags),
         tag_mode=tag_mode,
         text_query=text_query,
         keyword_mode=keyword_mode,
         regex=regex,
         exclude_regex=exclude_regex,
-        search_fields=search_fields,
+        search_fields=_normalize_str_list(search_fields),
         due_from=due_from,
         due_to=due_to,
         start_from=start_from,
@@ -316,6 +328,8 @@ __all__ = [
     "_model_list",
     "_query_service",
     "_preset_store",
+    "_normalize_str_list",
+    "StrListArg",
     "_make_task_filter_spec",
     "client",
     "TickTickAPIError",

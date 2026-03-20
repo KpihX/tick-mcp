@@ -9,7 +9,16 @@ from datetime import datetime, timedelta
 import re
 from typing import Any, Optional
 
-from .core import mcp, _err, _query_service, _preset_store, _make_task_filter_spec, TickTickAPIError
+from .core import (
+    mcp,
+    _err,
+    _query_service,
+    _preset_store,
+    _make_task_filter_spec,
+    _normalize_str_list,
+    StrListArg,
+    TickTickAPIError,
+)
 
 
 def _local_day_bounds(raw_date: Optional[str]) -> tuple[str, str]:
@@ -67,9 +76,9 @@ def workspace_map(
 def query_projects(
     name_query: Optional[str] = None,
     regex: Optional[str] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    kinds: Optional[list[str]] = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    kinds: StrListArg = None,
     include_closed: bool = False,
     limit: int = 50,
     sort_by: str = "name",
@@ -80,14 +89,15 @@ def query_projects(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: workspace_map, list_projects, list_project_folders, query_folders]
+    Multi-value filters accept either a list or a single string.
     """
     try:
         return _query_service().query_projects(
             name_query=name_query,
             regex=regex,
-            folder_ids=folder_ids,
-            folder_names=folder_names,
-            kinds=kinds,
+            folder_ids=_normalize_str_list(folder_ids),
+            folder_names=_normalize_str_list(folder_names),
+            kinds=_normalize_str_list(kinds),
             include_closed=include_closed,
             limit=limit,
             sort_by=sort_by,
@@ -123,17 +133,17 @@ def query_folders(
 
 @mcp.tool()
 def query_tasks(
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     tag_mode: str = "any",
     text_query: Optional[str] = None,
     keyword_mode: str = "any",
     regex: Optional[str] = None,
     exclude_regex: Optional[str] = None,
-    search_fields: Optional[list[str]] = None,
+    search_fields: StrListArg = None,
     due_from: Optional[str] = None,
     due_to: Optional[str] = None,
     start_from: Optional[str] = None,
@@ -162,6 +172,7 @@ def query_tasks(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: query_notes, query_agenda, get_all_tasks, get_project_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     try:
         spec = _make_task_filter_spec(
@@ -206,15 +217,15 @@ def query_tasks(
 
 @mcp.tool()
 def query_notes(
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
     text_query: Optional[str] = None,
     keyword_mode: str = "any",
     regex: Optional[str] = None,
     exclude_regex: Optional[str] = None,
-    search_fields: Optional[list[str]] = None,
+    search_fields: StrListArg = None,
     created_from: Optional[str] = None,
     created_to: Optional[str] = None,
     modified_from: Optional[str] = None,
@@ -228,6 +239,7 @@ def query_notes(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: query_tasks, workspace_map, get_project_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     try:
         spec = _make_task_filter_spec(
@@ -258,17 +270,17 @@ def query_agenda(
     from_dt: str,
     to_dt: str,
     date_field: str = "scheduled",
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     tag_mode: str = "any",
     text_query: Optional[str] = None,
     keyword_mode: str = "any",
     regex: Optional[str] = None,
     exclude_regex: Optional[str] = None,
-    search_fields: Optional[list[str]] = None,
+    search_fields: StrListArg = None,
     time_from: Optional[str] = None,
     time_to: Optional[str] = None,
     timed_only: bool = False,
@@ -289,6 +301,7 @@ def query_agenda(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: query_tasks, get_all_tasks, get_project_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     try:
         spec = _make_task_filter_spec(
@@ -326,11 +339,11 @@ def query_agenda(
 @mcp.tool()
 def tasks_of_today(
     local_date: Optional[str] = None,
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     text_query: Optional[str] = None,
     limit: int = 50,
 ) -> dict:
@@ -339,6 +352,7 @@ def tasks_of_today(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: query_agenda, events_of_today, overdue_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     start, end = _local_day_bounds(local_date)
     return query_agenda(
@@ -360,11 +374,11 @@ def tasks_of_today(
 @mcp.tool()
 def events_of_today(
     local_date: Optional[str] = None,
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     text_query: Optional[str] = None,
     time_from: Optional[str] = None,
     time_to: Optional[str] = None,
@@ -375,6 +389,7 @@ def events_of_today(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: tasks_of_today, query_agenda]
+    Multi-value filters accept either a list or a single string.
     """
     start, end = _local_day_bounds(local_date)
     return query_agenda(
@@ -400,11 +415,11 @@ def events_of_today(
 def week_overview(
     local_date: Optional[str] = None,
     days: int = 7,
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     text_query: Optional[str] = None,
     time_from: Optional[str] = None,
     time_to: Optional[str] = None,
@@ -415,6 +430,7 @@ def week_overview(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: week_agenda, upcoming_tasks, overdue_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     events = week_agenda(
         local_date=local_date,
@@ -470,11 +486,11 @@ def week_overview(
 def week_agenda(
     local_date: Optional[str] = None,
     days: int = 7,
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     text_query: Optional[str] = None,
     timed_only: bool = False,
     time_from: Optional[str] = None,
@@ -486,6 +502,7 @@ def week_agenda(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: query_agenda, tasks_of_today, events_of_today]
+    Multi-value filters accept either a list or a single string.
     """
     start, end = _local_range_bounds(local_date, days)
     return query_agenda(
@@ -511,11 +528,11 @@ def week_agenda(
 def upcoming_tasks(
     local_date: Optional[str] = None,
     days: int = 7,
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     text_query: Optional[str] = None,
     min_priority: Optional[int] = None,
     priorities: Optional[list[int]] = None,
@@ -526,6 +543,7 @@ def upcoming_tasks(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: query_tasks, week_agenda, overdue_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     due_from, due_to = _local_range_bounds(local_date, days)
     return query_tasks(
@@ -548,11 +566,11 @@ def upcoming_tasks(
 @mcp.tool()
 def overdue_tasks(
     before_dt: Optional[str] = None,
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     text_query: Optional[str] = None,
     limit: int = 50,
 ) -> dict:
@@ -561,6 +579,7 @@ def overdue_tasks(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: tasks_of_today, query_tasks, stale_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     now = before_dt or datetime.now().astimezone().replace(microsecond=0).isoformat()
     return query_tasks(
@@ -580,11 +599,11 @@ def overdue_tasks(
 @mcp.tool()
 def stale_tasks(
     older_than_days: int = 30,
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     text_query: Optional[str] = None,
     limit: int = 50,
 ) -> dict:
@@ -593,6 +612,7 @@ def stale_tasks(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: query_tasks, overdue_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     threshold = datetime.now().astimezone().replace(microsecond=0) - timedelta(days=older_than_days)
     return query_tasks(
@@ -611,11 +631,11 @@ def stale_tasks(
 
 @mcp.tool()
 def priority_dashboard(
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     text_query: Optional[str] = None,
     limit: int = 100,
 ) -> dict:
@@ -624,6 +644,7 @@ def priority_dashboard(
 
     [Category: Query & Search]  [Auth: V1 + V2]
     [Related: query_tasks, tasks_of_today, overdue_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     result = query_tasks(
         project_ids=project_ids,
@@ -763,17 +784,17 @@ def query_task_history(
     history_source: str,
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    project_ids: Optional[list[str]] = None,
-    project_names: Optional[list[str]] = None,
-    folder_ids: Optional[list[str]] = None,
-    folder_names: Optional[list[str]] = None,
-    tags: Optional[list[str]] = None,
+    project_ids: StrListArg = None,
+    project_names: StrListArg = None,
+    folder_ids: StrListArg = None,
+    folder_names: StrListArg = None,
+    tags: StrListArg = None,
     tag_mode: str = "any",
     text_query: Optional[str] = None,
     keyword_mode: str = "any",
     regex: Optional[str] = None,
     exclude_regex: Optional[str] = None,
-    search_fields: Optional[list[str]] = None,
+    search_fields: StrListArg = None,
     due_from: Optional[str] = None,
     due_to: Optional[str] = None,
     start_from: Optional[str] = None,
@@ -802,6 +823,7 @@ def query_task_history(
 
     [Category: Query & Search]  [Auth: V2]
     [Related: get_completed_tasks, get_deleted_tasks, query_tasks]
+    Multi-value filters accept either a list or a single string.
     """
     try:
         spec = _make_task_filter_spec(

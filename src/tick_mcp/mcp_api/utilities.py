@@ -45,7 +45,9 @@ def ticktick_guide(
             "reorganize_projects", or "clean_up_tasks".
         show_workflows: If True, return common multi-step workflow recipes.
 
-    Tip: Call check_v2_availability() to see which features need a session token.
+      Tip: Call check_v2_availability() to see which features need a session token.
+      Query filter ergonomics: for multi-value string filters (project/folder IDs or
+      names, tags, search_fields, kinds), tools accept either a single string or a list.
 
     ── AGENT OPERATING CONTRACT ─────────────────────────────────────────────────
     The TickTick API is dual-layer (V1 official + V2 unofficial) with silent failure
@@ -112,6 +114,10 @@ def ticktick_guide(
         "total_tools": total,
         "categories": summary,
         "intents": INTENT_GUIDE,
+        "query_filter_ergonomics": (
+            "Multi-value string filters accept either a single string or a list. "
+            "Example: folder_names='🎓 X' or folder_names=['🎓 X']."
+        ),
         "tip": (
             "Call ticktick_guide(category='tasks') to drill into a category, "
             "ticktick_guide(intent='know_what_to_do_today') for a goal-oriented path, "

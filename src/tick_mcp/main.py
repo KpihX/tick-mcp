@@ -3,7 +3,8 @@ import sys
 import signal
 import typer
 from rich.console import Console
-from .mcp_api import mcp
+# Import the public server facade so all @mcp.tool decorators are registered.
+from .server import mcp
 from . import daemon
 
 console = Console(stderr=True)          # ALL CLI output → stderr (stdout = MCP stdio)

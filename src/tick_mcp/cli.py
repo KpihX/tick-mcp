@@ -18,7 +18,7 @@ import json
 import logging
 import httpx
 import typer
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Annotated, Optional
 from dotenv import set_key, dotenv_values
@@ -36,6 +36,10 @@ _PACKAGE_DIR = Path(__file__).resolve().parent
 _DOTENV_PATH = _PACKAGE_DIR / ".env"
 _LOG_DIR = _PACKAGE_DIR.parent.parent.parent / "logs"   # repo root / logs/
 _LOG_FILE = _LOG_DIR / "ticktick_admin_debug.log"
+_SESSION_OBTAINED_AT_KEY = f"{ENV_SESSION_TOKEN}_OBTAINED_AT"
+_SESSION_EXPIRES_AT_KEY = f"{ENV_SESSION_TOKEN}_EXPIRES_AT"
+_API_EXPIRES_AT_KEY = f"{ENV_API_TOKEN}_EXPIRES_AT"
+_APPROX_SESSION_TTL = timedelta(days=30)
 
 # ─── Debug logger ─────────────────────────────────────────────────────────────────────
 class _FlushingFileHandler(logging.FileHandler):
@@ -127,6 +131,94 @@ def _write_env(key: str, value: str) -> None:
     if not success:
         err.print(f"[red]Failed to write {key} to {_DOTENV_PATH}[/red]")
         raise typer.Exit(1)
+
+
+def _write_optional_env(key: str, value: str | None) -> None:
+    """Write an env key only when a value is explicitly provided."""
+    if value is None:
+        return
+    _write_env(key, value)
+
+
+def _now_utc() -> datetime:
+    """Return the current UTC timestamp as a timezone-aware datetime."""
+    return datetime.now(timezone.utc)
+
+
+def _to_epoch_string(dt: datetime) -> str:
+    """Serialize a timezone-aware datetime to epoch seconds."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return str(int(dt.timestamp()))
+
+
+def _parse_epoch(value: str | None) -> datetime | None:
+    """Parse epoch seconds stored in .env metadata."""
+    if not value:
+        return None
+    try:
+        return datetime.fromtimestamp(float(value), tz=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    """Parse an ISO-8601 datetime option to a timezone-aware UTC datetime."""
+    if not value:
+        return None
+    normalized = value.strip().replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        err.print("[red]Invalid datetime format.[/red] Use ISO-8601, e.g. 2026-04-20T18:30:00+00:00")
+        raise typer.Exit(1)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _format_timestamp(dt: datetime | None) -> str:
+    """Render a UTC datetime for human-readable status output."""
+    if not dt:
+        return "[dim]unknown[/dim]"
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _format_remaining(expires_at: datetime | None, *, approximate: bool = False) -> str:
+    """Render human-readable time remaining until expiration."""
+    if not expires_at:
+        return "[dim]unknown[/dim]"
+    remaining = expires_at - _now_utc()
+    if remaining.total_seconds() <= 0:
+        return "[red]expired[/red]"
+    total_seconds = int(remaining.total_seconds())
+    days, rem = divmod(total_seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, _ = divmod(rem, 60)
+    parts: list[str] = []
+    if days:
+        parts.append(f"{days}d")
+    if hours or days:
+        parts.append(f"{hours}h")
+    parts.append(f"{minutes}m")
+    prefix = "≈ " if approximate else ""
+    return f"[green]{prefix}{' '.join(parts)}[/green]"
+
+
+def _timing_summary(
+    *,
+    expires_at: datetime | None,
+    obtained_at: datetime | None = None,
+    approximate: bool = False,
+) -> str:
+    """Build a compact status string for token timing metadata."""
+    segments = []
+    if obtained_at:
+        segments.append(f"obtained {_format_timestamp(obtained_at)}")
+    if expires_at:
+        segments.append(f"expires {_format_timestamp(expires_at)}")
+        segments.append(f"left {_format_remaining(expires_at, approximate=approximate)}")
+    return " | ".join(segments) if segments else "[dim]no expiration metadata[/dim]"
 
 
 def _http_post(label: str, url: str, payload: dict, *, extra_headers: dict | None = None) -> httpx.Response:
@@ -387,14 +479,29 @@ def status():
     tbl.add_column("Variable", style="bold cyan", no_wrap=True)
     tbl.add_column("Status")
     tbl.add_column("Value (masked)")
+    tbl.add_column("Timing")
 
-    def _row(key: str, label: str):
+    def _row(key: str, *, timing: str = "[dim]n/a[/dim]"):
         val = env.get(key) or None
         status_str = "[green]✓ set[/green]" if val else "[red]✗ missing[/red]"
-        tbl.add_row(key, status_str, _mask(val))
+        tbl.add_row(key, status_str, _mask(val), timing if val else "[dim]n/a[/dim]")
 
-    _row(ENV_API_TOKEN,    "V1 Bearer token")
-    _row(ENV_SESSION_TOKEN, "V2 session cookie")
+    api_expires_at = _parse_epoch(env.get(_API_EXPIRES_AT_KEY))
+    session_obtained_at = _parse_epoch(env.get(_SESSION_OBTAINED_AT_KEY))
+    session_expires_at = _parse_epoch(env.get(_SESSION_EXPIRES_AT_KEY))
+
+    _row(
+        ENV_API_TOKEN,
+        timing=_timing_summary(expires_at=api_expires_at),
+    )
+    _row(
+        ENV_SESSION_TOKEN,
+        timing=_timing_summary(
+            expires_at=session_expires_at,
+            obtained_at=session_obtained_at,
+            approximate=True,
+        ),
+    )
 
     console.print()
     console.print(tbl)
@@ -410,12 +517,19 @@ def status():
 @token_app.command("set")
 def token_set(
     value: Annotated[Optional[str], typer.Argument(help="The API token value. Prompted if omitted.")] = None,
+    expires_at: Annotated[
+        Optional[str],
+        typer.Option("--expires-at", help="Optional ISO-8601 expiration timestamp for the API token."),
+    ] = None,
 ):
     """Set the V1 API token in .env (official API)."""
     if not value:
         value = typer.prompt(ENV_API_TOKEN, hide_input=True)
     _write_env(ENV_API_TOKEN, value.strip())
+    _write_optional_env(_API_EXPIRES_AT_KEY, _to_epoch_string(_parse_iso_datetime(expires_at)) if expires_at else None)
     console.print(f"[green]✓[/green] {ENV_API_TOKEN} updated in [dim]{_DOTENV_PATH}[/dim]")
+    if expires_at:
+        console.print(f"[dim]Expiration metadata saved: {_format_timestamp(_parse_iso_datetime(expires_at))}[/dim]")
 
 
 # ─── session ──────────────────────────────────────────────────────────────────
@@ -423,6 +537,14 @@ def token_set(
 @session_app.command("set")
 def session_set(
     value: Annotated[Optional[str], typer.Argument(help="The session cookie value. Prompted if omitted.")] = None,
+    ttl_days: Annotated[
+        Optional[int],
+        typer.Option("--ttl-days", min=1, help="Optional session validity window in days for status reporting."),
+    ] = None,
+    expires_at: Annotated[
+        Optional[str],
+        typer.Option("--expires-at", help="Optional ISO-8601 expiration timestamp for the session token."),
+    ] = None,
 ):
     """
     Set the V2 session token directly in .env (web API).
@@ -433,7 +555,18 @@ def session_set(
     if not value:
         value = typer.prompt(ENV_SESSION_TOKEN, hide_input=True)
     _write_env(ENV_SESSION_TOKEN, value.strip())
+    now = _now_utc()
+    computed_expires_at = _parse_iso_datetime(expires_at)
+    if ttl_days is not None:
+        computed_expires_at = now + timedelta(days=ttl_days)
+    _write_env(_SESSION_OBTAINED_AT_KEY, _to_epoch_string(now))
+    _write_optional_env(
+        _SESSION_EXPIRES_AT_KEY,
+        _to_epoch_string(computed_expires_at) if computed_expires_at else None,
+    )
     console.print(f"[green]✓[/green] {ENV_SESSION_TOKEN} updated in [dim]{_DOTENV_PATH}[/dim]")
+    if computed_expires_at:
+        console.print(f"[dim]Expiration metadata saved: {_format_timestamp(computed_expires_at)}[/dim]")
 
 
 @session_app.command("refresh")
@@ -462,9 +595,14 @@ def session_refresh(
     token = _v2_login(username.strip(), password)
     console.print("[green]✓[/green]")
 
+    now = _now_utc()
+    expires_at = now + _APPROX_SESSION_TTL
     _write_env(ENV_SESSION_TOKEN, token)
+    _write_env(_SESSION_OBTAINED_AT_KEY, _to_epoch_string(now))
+    _write_env(_SESSION_EXPIRES_AT_KEY, _to_epoch_string(expires_at))
     console.print(f"[green]✓[/green] {ENV_SESSION_TOKEN} updated in [dim]{_DOTENV_PATH}[/dim]")
     console.print(f"[dim]Token value: {_mask(token)}[/dim]")
+    console.print(f"[dim]Approximate expiration: {_format_timestamp(expires_at)} ({_format_remaining(expires_at, approximate=True)} left)[/dim]")
     console.print()
     console.print("[dim]The MCP server will pick it up automatically on next restart (or hot-reload if supported).[/dim]")
 
