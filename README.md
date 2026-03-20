@@ -88,6 +88,7 @@ src/tick_mcp/
 ├── client.py            # stable public facade over client_api/*
 ├── models.py            # pydantic contracts
 ├── server.py            # stable public import surface for the MCP server
+├── http_app.py          # health/admin HTTP wrapper around the MCP streamable transport
 └── main.py              # CLI entrypoint
 ```
 
@@ -105,7 +106,7 @@ This provides two commands:
 
 | Command | Description |
 |---|---|
-| `tick-mcp` | Start the MCP server (stdio transport) |
+| `tick-mcp` | Start the MCP server (stdio by default, HTTP via `serve-http`) |
 | `tick-admin` | CLI helper — session refresh, diagnostics |
 
 ## Configuration
@@ -122,6 +123,7 @@ cp src/tick_mcp/.env.example src/tick_mcp/.env
 |---|---|---|
 | `TICKTICK_API_TOKEN` | **Yes** | V1 Open API bearer token (PAT or OAuth2) |
 | `TICKTICK_SESSION_TOKEN` | No | V2 session cookie for extended features |
+| `TELEGRAM_TICK_HOMELAB_TOKEN` | No | Reserved for the future homelab Telegram admin bridge |
 
 **Getting a V1 token (simplest):**
 
@@ -141,7 +143,63 @@ tick-admin session refresh
 
 ### 2. Server config
 
-Runtime settings live in `src/tick_mcp/config.yaml` — API endpoints, timeouts, and user-agent are all externalised there.
+Runtime settings live in `src/tick_mcp/config.yaml` — API endpoints, timeouts, user-agent, and HTTP transport defaults are all externalised there.
+
+### 3. Dual transport model
+
+The same server surface now supports two transport modes:
+
+```bash
+# Local fallback (current default)
+tick-mcp serve
+
+# Homelab / remote MCP transport
+tick-mcp serve-http
+```
+
+HTTP defaults:
+
+- MCP endpoint: `/mcp`
+- Health endpoint: `/health`
+- Admin status endpoint: `/admin/status`
+- Primary URL: `https://tick.kpihx-labs.com`
+- Fallback URL: `https://tick.homelab`
+
+Operational intent:
+
+```text
+remote HTTP on the homelab
+-> preferred transport for agents and automations
+
+local stdio
+-> immediate fallback if the remote service is unavailable
+```
+
+### 4. Docker / Homelab deployment
+
+Deployment artifacts are bundled in the repo:
+
+- `Dockerfile`
+- `docker-compose.yml`
+- `docker-compose.override.example.yml`
+- `.dockerignore`
+- `.gitlab-ci.yml`
+
+Typical local dry-run:
+
+```bash
+cp src/tick_mcp/.env.example .env
+docker compose config -q
+docker compose up --build
+```
+
+Typical SSH-side admin once deployed on the server:
+
+```bash
+docker compose exec -T tick-mcp tick-admin status
+docker compose logs --tail=100 tick-mcp
+curl -fsS http://127.0.0.1:8091/health
+```
 
 ## MCP Client Integration
 
@@ -184,6 +242,13 @@ Add to `.vscode/mcp.json`:
 ### Other MCP clients
 
 Any client that supports the stdio transport can launch `tick-mcp` as a subprocess.
+
+For clients that support remote MCP over HTTP, prefer the homelab endpoint first and keep the current stdio setup as a fallback profile:
+
+```text
+Primary : https://tick.kpihx-labs.com/mcp
+Fallback: tick-mcp serve
+```
 
 ## Development
 

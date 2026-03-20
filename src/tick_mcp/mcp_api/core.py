@@ -7,13 +7,27 @@ from typing import Any, Optional, TypeAlias
 
 from mcp.server.fastmcp import FastMCP
 
-from ..config import SERVER_NAME, STATE_DIRECTORY, has_v2_auth, ENV_SESSION_TOKEN, SESSION_COOKIE_NAME
+from ..config import (
+    SERVER_NAME,
+    STATE_DIRECTORY,
+    HTTP_HOST,
+    HTTP_PORT,
+    HTTP_MCP_PATH,
+    has_v2_auth,
+    ENV_SESSION_TOKEN,
+    SESSION_COOKIE_NAME,
+)
 from .. import client
 from ..models import TickTickAPIError, Priority, build_reminder_trigger, build_rrule
 from ..services.query_presets import QueryPresetStore
 from ..services.query import TaskFilterSpec, TickTickQueryService
 
-mcp = FastMCP(SERVER_NAME)
+mcp = FastMCP(
+    SERVER_NAME,
+    host=HTTP_HOST,
+    port=HTTP_PORT,
+    streamable_http_path=HTTP_MCP_PATH,
+)
 
 StrListArg: TypeAlias = Optional[list[str] | str]
 

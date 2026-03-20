@@ -1,0 +1,8 @@
+services:
+  tick-mcp:
+    ports:
+      - "8091:8091"
+
+networks:
+  proxy:
+    external: false

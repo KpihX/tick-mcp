@@ -1,0 +1,16 @@
+.agent/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.git/
+.gitignore
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+logs/
+src/tick_mcp/.env
+tests/

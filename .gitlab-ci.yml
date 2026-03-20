@@ -1,0 +1,51 @@
+stages:
+  - validate
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+validate_project:
+  stage: validate
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+  script:
+    - uv sync --group dev
+    - uv run python -m py_compile $(find src -name '*.py' -print)
+    - uv run --group dev python -m pytest tests -q
+    - |
+      uv run python - <<'PY'
+      import anyio
+      import json
+      from tick_mcp.http_app import health
+      response = anyio.run(health, None)
+      assert response.status_code == 200
+      payload = json.loads(response.body)
+      assert payload["product"] == "tick-mcp"
+      assert payload["transport"] == "streamable-http"
+      print("tick-mcp HTTP smoke test OK")
+      PY
+
+deploy_homelab:
+  stage: deploy
+  tags:
+    - homelab
+  only:
+    - main
+  needs:
+    - validate_project
+  script:
+    - echo "🚀 Deploying tick-mcp to the homelab..."
+    - echo "TICKTICK_API_TOKEN=$TICKTICK_API_TOKEN" > .env
+    - echo "TICKTICK_SESSION_TOKEN=$TICKTICK_SESSION_TOKEN" >> .env
+    - echo "TICKTICK_USERNAME=$TICKTICK_USERNAME" >> .env
+    - echo "TICKTICK_PASSWORD=$TICKTICK_PASSWORD" >> .env
+    - echo "TELEGRAM_TICK_HOMELAB_TOKEN=$TELEGRAM_TICK_HOMELAB_TOKEN" >> .env
+    - echo "TICK_MCP_HTTP_HOST=0.0.0.0" >> .env
+    - echo "TICK_MCP_HTTP_PORT=8091" >> .env
+    - echo "TICK_MCP_HTTP_MCP_PATH=/mcp" >> .env
+    - echo "TICK_MCP_PUBLIC_BASE_URL=https://tick.kpihx-labs.com" >> .env
+    - echo "TICK_MCP_FALLBACK_BASE_URL=https://tick.homelab" >> .env
+    - docker compose config -q
+    - docker compose up -d --build --remove-orphans
+    - curl -fsS http://127.0.0.1:8091/health
+    - docker image prune -f

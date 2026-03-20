@@ -6,6 +6,7 @@ from rich.console import Console
 # Import the public server facade so all @mcp.tool decorators are registered.
 from .server import mcp
 from . import daemon
+from .config import HTTP_HOST, HTTP_PORT, HTTP_MCP_PATH
 
 console = Console(stderr=True)          # ALL CLI output → stderr (stdout = MCP stdio)
 app = typer.Typer(
@@ -30,6 +31,22 @@ def serve():
     console.print(f"[green]TickTick MCP Server starting (PID {pid})...[/green]")
     try:
         mcp.run(transport="stdio")
+    finally:
+        daemon.clear_pid()
+
+
+@app.command("serve-http")
+def serve_http():
+    """Start the TickTick MCP server in streamable HTTP mode."""
+    import uvicorn
+
+    pid = os.getpid()
+    daemon.write_pid(pid)
+    console.print(
+        f"[green]TickTick MCP HTTP Server starting (PID {pid}) on {HTTP_HOST}:{HTTP_PORT}{HTTP_MCP_PATH}...[/green]"
+    )
+    try:
+        uvicorn.run("tick_mcp.http_app:app", host=HTTP_HOST, port=HTTP_PORT, reload=False)
     finally:
         daemon.clear_pid()
 

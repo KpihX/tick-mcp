@@ -2,6 +2,12 @@ server:
   name: Tick-MCP
   version: 0.2.0
   state_directory: ~/.mcps/ticktick
+  http:
+    host: 127.0.0.1
+    port: 8091
+    mcp_path: /mcp
+    public_base_url: https://tick.kpihx-labs.com
+    fallback_base_url: https://tick.homelab
 
 # ── TickTick API endpoints & HTTP settings ────────────────────────────────────
 # If TickTick ever changes any URL, header, or parameter — update here only.
@@ -43,6 +49,12 @@ env_vars:
   session_token: TICKTICK_SESSION_TOKEN
   username: TICKTICK_USERNAME
   password: TICKTICK_PASSWORD
+  http_host: TICK_MCP_HTTP_HOST
+  http_port: TICK_MCP_HTTP_PORT
+  http_mcp_path: TICK_MCP_HTTP_MCP_PATH
+  public_base_url: TICK_MCP_PUBLIC_BASE_URL
+  fallback_base_url: TICK_MCP_FALLBACK_BASE_URL
+  telegram_tick_homelab_token: TELEGRAM_TICK_HOMELAB_TOKEN
 
 # ── External secrets manager (bw-env) ─────────────────────────────────────────
 # Optional fallback. If bw-env is not installed, this section is ignored.

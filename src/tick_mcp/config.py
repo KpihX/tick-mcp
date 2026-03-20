@@ -49,6 +49,7 @@ import time
 import yaml
 from pathlib import Path
 from functools import lru_cache
+from importlib.metadata import PackageNotFoundError, version as pkg_version
 from dotenv import load_dotenv
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
@@ -80,6 +81,22 @@ def load_config(config_path=CONFIG_PATH) -> dict:
 # ─── Global typed constants ───────────────────────────────────────────────────
 _config = load_config()
 _api = _config.get("api", {})
+_server = _config.get("server", {})
+_server_http = _server.get("http", {})
+
+
+def _read_env_override(name: str, default: str) -> str:
+    """Read a runtime override from the environment, falling back to config."""
+    value = os.environ.get(name)
+    return value if value not in (None, "") else default
+
+
+def _package_version(default: str) -> str:
+    """Read the installed package version, or fall back to config metadata."""
+    try:
+        return pkg_version("tick-mcp")
+    except PackageNotFoundError:
+        return default
 
 # ── URLs ──────────────────────────────────────────────────────────────────────
 API_V1_BASE_URL: str = _api.get("v1_base_url", "https://api.ticktick.com/open/v1")
@@ -99,9 +116,10 @@ API_TIMEOUT: int = _api.get("timeout", 15)
 USER_AGENT: str = _api.get("user_agent", "Mozilla/5.0 (X11; Linux x86_64; rv:145.0) Gecko/20100101 Firefox/145.0")
 SESSION_COOKIE_NAME: str = _api.get("session_cookie_name", "t")
 
-SERVER_NAME: str = _config.get("server", {}).get("name", "Tick-MCP")
+SERVER_NAME: str = _server.get("name", "Tick-MCP")
+APP_VERSION: str = _package_version(str(_server.get("version", "0.2.0")))
 STATE_DIRECTORY: Path = Path(
-    _config.get("server", {}).get("state_directory", "~/.mcps/ticktick")
+    _server.get("state_directory", "~/.mcps/ticktick")
 ).expanduser()
 
 # ── V2 device fingerprint (X-Device header) ──────────────────────────────────
@@ -134,6 +152,28 @@ ENV_API_TOKEN: str = _env_vars.get("api_token", "TICKTICK_API_TOKEN")
 ENV_SESSION_TOKEN: str = _env_vars.get("session_token", "TICKTICK_SESSION_TOKEN")
 ENV_USERNAME: str = _env_vars.get("username", "TICKTICK_USERNAME")
 ENV_PASSWORD: str = _env_vars.get("password", "TICKTICK_PASSWORD")
+ENV_HTTP_HOST: str = _env_vars.get("http_host", "TICK_MCP_HTTP_HOST")
+ENV_HTTP_PORT: str = _env_vars.get("http_port", "TICK_MCP_HTTP_PORT")
+ENV_HTTP_MCP_PATH: str = _env_vars.get("http_mcp_path", "TICK_MCP_HTTP_MCP_PATH")
+ENV_PUBLIC_BASE_URL: str = _env_vars.get("public_base_url", "TICK_MCP_PUBLIC_BASE_URL")
+ENV_FALLBACK_BASE_URL: str = _env_vars.get("fallback_base_url", "TICK_MCP_FALLBACK_BASE_URL")
+ENV_TELEGRAM_TICK_HOMELAB_TOKEN: str = _env_vars.get(
+    "telegram_tick_homelab_token",
+    "TELEGRAM_TICK_HOMELAB_TOKEN",
+)
+
+HTTP_HOST: str = _read_env_override(ENV_HTTP_HOST, str(_server_http.get("host", "127.0.0.1")))
+HTTP_PORT: int = int(_read_env_override(ENV_HTTP_PORT, str(_server_http.get("port", 8091))))
+HTTP_MCP_PATH: str = _read_env_override(ENV_HTTP_MCP_PATH, str(_server_http.get("mcp_path", "/mcp")))
+HTTP_PUBLIC_BASE_URL: str = _read_env_override(
+    ENV_PUBLIC_BASE_URL,
+    str(_server_http.get("public_base_url", "https://tick.kpihx-labs.com")),
+)
+HTTP_FALLBACK_BASE_URL: str = _read_env_override(
+    ENV_FALLBACK_BASE_URL,
+    str(_server_http.get("fallback_base_url", "https://tick.homelab")),
+)
+TELEGRAM_TICK_HOMELAB_TOKEN: str | None = os.environ.get(ENV_TELEGRAM_TICK_HOMELAB_TOKEN)
 
 # ─── Secrets manager fallback (bw-env) ───────────────────────────────────────
 _secrets_cfg = _config.get("secrets", {})
@@ -441,3 +481,15 @@ def get_password() -> str | None:
 def has_v2_auth() -> bool:
     """Return True if V2 auth is possible: token present OR credentials present."""
     return bool(get_session_token()) or bool(get_username() and get_password())
+
+
+def has_v2_auth_in_environment() -> bool:
+    """
+    Return True if V2 auth material is already present in the current process env.
+
+    This helper is intentionally non-interactive: it must never trigger bw-env,
+    login-shell reads, or daemon restarts. It is safe for `/health` style probes.
+    """
+    return bool(os.environ.get(ENV_SESSION_TOKEN)) or bool(
+        os.environ.get(ENV_USERNAME) and os.environ.get(ENV_PASSWORD)
+    )

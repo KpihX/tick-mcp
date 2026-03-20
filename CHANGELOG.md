@@ -5,10 +5,14 @@ All notable changes to **tick-mcp** will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).  
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] — 2026-03-20
 
 ### Added
 
+- **Streamable HTTP transport** — `tick-mcp serve-http` now exposes the same MCP surface over HTTP for homelab deployment.
+- **HTTP operator surface** — `/health` and `/admin/status` added alongside `/mcp`.
+- **Homelab deployment bundle** — `Dockerfile`, `docker-compose.yml`, `docker-compose.override.example.yml`, `.dockerignore`, and `.gitlab-ci.yml`.
+- **Deployment env template** — `src/tick_mcp/.env.example` now covers HTTP settings and `TELEGRAM_TICK_HOMELAB_TOKEN`.
 - **Query / Search layer** — `workspace_map`, `query_projects`, `query_folders`, `query_tasks`, `query_notes`, `query_agenda`, and `query_task_history`.
 - **Ready-made read views** — `tasks_of_today`, `events_of_today`, `overdue_tasks`, and `stale_tasks`.
 - **Operational dashboards/views** — `week_agenda`, `upcoming_tasks`, and `priority_dashboard` for common planning and triage flows.
@@ -26,6 +30,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **FastMCP transport settings** — host, port, and MCP path are now driven by structured config and env overrides.
+- **Dual transport documentation** — README now documents remote HTTP as the primary target and local stdio as the fallback.
 - **Server organization** — shared MCP state/helpers now live in `mcp_api/core.py`, with read/query tools isolated in `mcp_api/read.py`, verified workflow helpers in `mcp_api/verified.py`, and reusable filters/planning in `services/query.py`.
 - **Client organization** — the former monolithic `client.py` is now a stable facade over `client_api/transport.py`, `projects.py`, `tasks.py`, `habits.py`, and `stats.py`.
 
