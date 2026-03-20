@@ -1,8 +1,9 @@
 """
-Unit tests for high-level views and verified structural wrappers.
+Unit tests for high-level views, presets, and verified structural wrappers.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -94,6 +95,38 @@ class TestReadViews:
         assert result["buckets"]["none"]["count"] == 1
         assert result["scope"]["project_names"] == ["Alpha"]
 
+    def test_week_overview_splits_sections(self, monkeypatch):
+        monkeypatch.setattr(read, "week_agenda", lambda **kwargs: {"count": 1, "items": [{"id": "event1"}]})
+        monkeypatch.setattr(read, "upcoming_tasks", lambda **kwargs: {"count": 2, "items": [{"id": "due1"}, {"id": "due2"}]})
+        monkeypatch.setattr(read, "overdue_tasks", lambda **kwargs: {"count": 1, "items": [{"id": "late1"}]})
+
+        result = read.week_overview(local_date="2026-03-20", days=7)
+
+        assert result["events"]["count"] == 1
+        assert result["due_tasks"]["count"] == 2
+        assert result["overdue"]["count"] == 1
+
+    def test_query_preset_roundtrip(self, monkeypatch, tmp_path):
+        store = read._preset_store()
+        monkeypatch.setattr(store, "_base_dir", tmp_path)
+        monkeypatch.setattr(store, "_path", tmp_path / "query_presets.json")
+
+        save = read.save_query_preset(
+            name="my-week",
+            query_type="week_overview",
+            filters={"local_date": "2026-03-20", "days": 7},
+            description="Weekly planning view",
+        )
+        listed = read.list_query_presets()
+        monkeypatch.setattr(read, "week_overview", lambda **kwargs: {"count": 3, "window": kwargs})
+        run = read.run_query_preset("my-week")
+        deleted = read.delete_query_preset("my-week")
+
+        assert save["saved"] is True
+        assert listed["count"] == 1
+        assert run["result"]["count"] == 3
+        assert deleted["deleted"] is True
+
 
 @pytest.mark.unit
 class TestVerifiedActions:
@@ -115,6 +148,20 @@ class TestVerifiedActions:
         assert result["verified"] is True
         assert result["created"]["parentId"] == "parent1"
 
+    def test_verified_create_project_checks_v1_and_v2(self, monkeypatch):
+        monkeypatch.setattr(server_mod, "create_project", lambda **kwargs: {"id": "p1", "name": kwargs["name"], "groupId": kwargs.get("group_id")})
+        monkeypatch.setattr(verified.client, "get_project", lambda project_id: Project(id=project_id, name="Alpha"))
+        monkeypatch.setattr(
+            verified.client,
+            "sync_all",
+            lambda: SimpleNamespace(projectProfiles=[Project(id="p1", name="Alpha", groupId="g1")]),
+        )
+
+        result = verified.verified_create_project(name="Alpha", group_id="g1")
+
+        assert result["verified"] is True
+        assert result["verification"]["group_id_persisted_v2"] is True
+
     def test_verified_move_tasks_checks_destination_presence(self, monkeypatch):
         monkeypatch.setattr(server_mod, "move_tasks", lambda moves: {"result": "ok", "cascaded_children": [{"taskId": "child1", "fromProjectId": "p1", "toProjectId": "p2"}]})
         monkeypatch.setattr(
@@ -133,6 +180,19 @@ class TestVerifiedActions:
 
         assert result["verified"] is True
         assert result["verification"][0]["missing_task_ids"] == []
+
+    def test_verified_batch_move_adds_rollback_hint_on_failure(self, monkeypatch):
+        monkeypatch.setattr(
+            verified,
+            "verified_move_tasks",
+            lambda moves: {"error": True, "verified": False, "verification": [{"project_id": "p2", "missing_task_ids": ["t1"]}]},
+        )
+
+        result = verified.verified_batch_move([{"taskId": "t1", "fromProjectId": "p1", "toProjectId": "p2"}])
+
+        assert result["error"] is True
+        assert result["rollback_hint"]["moves"][0]["fromProjectId"] == "p2"
+        assert result["rollback_hint"]["moves"][0]["toProjectId"] == "p1"
 
     def test_verified_assign_project_folder_uses_sync_state(self, monkeypatch):
         sync_states = [

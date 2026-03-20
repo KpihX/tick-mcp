@@ -6,7 +6,7 @@
 
 **MCP server for TickTick** — manage tasks, projects, habits, tags, focus stats, and more through the [Model Context Protocol](https://modelcontextprotocol.io/).
 
-**64 tools** exposed over MCP, covering both the official TickTick Open API (V1) and the unofficial web API (V2) for features not yet available publicly.
+**71 tools** exposed over MCP, covering both the official TickTick Open API (V1) and the unofficial web API (V2) for features not yet available publicly.
 
 ---
 
@@ -17,9 +17,9 @@
 | **Tasks** | `create_task` · `update_task` · `complete_task` · `reopen_task` · `delete_task` · `get_task_detail` · `get_project_tasks` · `get_inbox` · `get_all_tasks` |
 | **Batch** | `batch_create_tasks` · `batch_update_tasks` · `batch_delete_tasks` · `move_tasks` |
 | **Projects** | `create_project` · `update_project` · `delete_project` · `get_project_detail` · `list_projects` |
-| **Query / Search** | `workspace_map` · `query_projects` · `query_folders` · `query_tasks` · `query_notes` · `query_agenda` · `query_task_history` |
-| **Views** | `tasks_of_today` · `events_of_today` · `week_agenda` · `upcoming_tasks` · `overdue_tasks` · `stale_tasks` · `priority_dashboard` |
-| **Verified Actions** | `create_subtask` · `verified_set_subtask_parent` · `verified_move_tasks` · `verified_assign_project_folder` |
+| **Query / Search** | `workspace_map` · `query_projects` · `query_folders` · `query_tasks` · `query_notes` · `query_agenda` · `query_task_history` · `list_query_presets` · `save_query_preset` · `run_query_preset` · `delete_query_preset` |
+| **Views** | `tasks_of_today` · `events_of_today` · `week_agenda` · `week_overview` · `upcoming_tasks` · `overdue_tasks` · `stale_tasks` · `priority_dashboard` |
+| **Verified Actions** | `create_subtask` · `verified_create_project` · `verified_set_subtask_parent` · `verified_move_tasks` · `verified_batch_move` · `verified_assign_project_folder` |
 | **Tags** | `create_tag` · `update_tag` · `rename_tag` · `merge_tags` · `delete_tag` · `list_tags` |
 | **Habits** | `create_habit` · `update_habit` · `delete_habit` · `list_habits` · `habit_checkin` · `get_habit_records` · `list_habit_sections` |
 | **Kanban** | `list_columns` · `manage_columns` |
@@ -38,6 +38,7 @@
 - **Targeted note search** — notes are fetched only from NOTE projects in scope instead of materializing the whole workspace.
 - **Workspace navigation** — folder/project map with optional active task counts to inspect the account structure before acting.
 - **Ready-made operational views** — day view, week window, upcoming due tasks, overdue/stale detection, and priority summaries built on the same filter engine.
+- **Saved query presets** — persist reusable task/note/agenda/history/week-overview queries and execute them later without rebuilding the filter set.
 
 ### Verified workflow helpers
 
@@ -56,8 +57,8 @@ src/k_tick_mcp/
 │   ├── tasks_read.py    # inbox / project / task reads
 │   ├── tasks_write.py   # task mutation tools
 │   ├── tasks_batch.py   # batch + structural task operations
-│   ├── read.py          # high-level query/search and ready-made views
-│   ├── verified.py      # safe wrappers with read-back verification
+│   ├── read.py          # high-level query/search, views, and saved presets
+│   ├── verified.py      # safe wrappers with read-back verification + rollback hints
 │   ├── folders.py       # folders + kanban columns
 │   ├── tags.py          # tag tools
 │   ├── habits.py        # habit tools
@@ -179,7 +180,7 @@ git clone https://github.com/kpihx/k-tick-mcp.git
 cd k-tick-mcp
 uv sync --group dev
 
-# Unit tests (149 tests, no network)
+# Unit tests (156 tests, no network)
 uv run pytest
 
 # Live tests against real TickTick API (requires tokens in .env)
@@ -188,7 +189,7 @@ uv run pytest -m live
 
 ### Test suite
 
-- **149 unit tests** — pure logic, mocked HTTP, zero network
+- **156 unit tests** — pure logic, mocked HTTP, zero network
 - **12 live integration scripts** — 508 assertions against the real TickTick API
 
 ## License

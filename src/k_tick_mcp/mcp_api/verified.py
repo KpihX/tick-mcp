@@ -95,6 +95,64 @@ def create_subtask(
 
 
 @mcp.tool()
+def verified_create_project(
+    name: str,
+    color: Optional[str] = None,
+    kind: str = "TASK",
+    view_mode: Optional[str] = None,
+    group_id: Optional[str] = None,
+) -> dict:
+    """
+    Create a project, then verify that it exists and that folder assignment persisted if requested.
+
+    [Category: Verified Actions]  [Auth: V1 + V2 when group_id is provided]
+    [Related: create_project, verified_assign_project_folder]
+    """
+    from ..server import create_project
+
+    try:
+        result = create_project(
+            name=name,
+            color=color,
+            kind=kind,
+            view_mode=view_mode,
+            group_id=group_id,
+        )
+        if result.get("error"):
+            return result
+
+        project_id = result["id"]
+        project = client.get_project(project_id).model_dump(exclude_none=False)
+        verification = {
+            "exists_in_v1": bool(project),
+            "requested_group_id": group_id,
+        }
+        verified = bool(project)
+        sync_project = None
+        if group_id is not None:
+            sync_state = client.sync_all()
+            sync_project = next(
+                (item.model_dump(exclude_none=False) for item in sync_state.projectProfiles if item.id == project_id),
+                None,
+            )
+            verification["group_id_persisted_v2"] = bool(sync_project) and sync_project.get("groupId") == group_id
+            verified = verified and bool(verification["group_id_persisted_v2"])
+
+        output = {
+            "verified": verified,
+            "project": project,
+            "sync_project": sync_project,
+            "verification": verification,
+        }
+        if not verified:
+            output["error"] = True
+            output["message"] = "Project creation did not fully verify."
+        return output
+    except TickTickAPIError as e:
+        return _err(e)
+
+
+@mcp.tool()
 def verified_set_subtask_parent(
     task_id: str,
     project_id: str,
@@ -190,6 +248,32 @@ def verified_move_tasks(moves: list[dict]) -> dict:
         return output
     except TickTickAPIError as e:
         return _err(e)
+
+
+@mcp.tool()
+def verified_batch_move(moves: list[dict]) -> dict:
+    """
+    Verified batch move wrapper with rollback hints if verification fails.
+
+    [Category: Verified Actions]  [Auth: V2]
+    [Related: verified_move_tasks, move_tasks]
+    """
+    result = verified_move_tasks(moves)
+    if result.get("error"):
+        rollback_moves = [
+            {
+                "taskId": move["taskId"],
+                "fromProjectId": move["toProjectId"],
+                "toProjectId": move["fromProjectId"],
+            }
+            for move in moves
+        ]
+        result["rollback_hint"] = {
+            "tool": "move_tasks",
+            "moves": rollback_moves,
+            "note": "Run the rollback moves only after checking which tasks were actually moved.",
+        }
+    return result
 
 
 @mcp.tool()

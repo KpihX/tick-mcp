@@ -7,9 +7,10 @@ from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
 
-from ..config import SERVER_NAME, has_v2_auth, ENV_SESSION_TOKEN, SESSION_COOKIE_NAME
+from ..config import SERVER_NAME, STATE_DIRECTORY, has_v2_auth, ENV_SESSION_TOKEN, SESSION_COOKIE_NAME
 from .. import client
 from ..models import TickTickAPIError, Priority, build_reminder_trigger, build_rrule
+from ..services.query_presets import QueryPresetStore
 from ..services.query import TaskFilterSpec, TickTickQueryService
 
 mcp = FastMCP(SERVER_NAME)
@@ -35,10 +36,15 @@ TOOL_CATALOG = {
             "tasks_of_today",
             "events_of_today",
             "week_agenda",
+            "week_overview",
             "upcoming_tasks",
             "overdue_tasks",
             "stale_tasks",
             "priority_dashboard",
+            "list_query_presets",
+            "save_query_preset",
+            "run_query_preset",
+            "delete_query_preset",
         ],
         "desc": "Fine-grained exploration: folders, projects, notes, agenda windows, regex and structured task filters.",
     },
@@ -51,7 +57,14 @@ TOOL_CATALOG = {
         "desc": "Bulk task operations: create/update/delete many at once, move between projects, set parent-child.",
     },
     "🛡️ Verified Actions": {
-        "tools": ["create_subtask", "verified_set_subtask_parent", "verified_move_tasks", "verified_assign_project_folder"],
+        "tools": [
+            "create_subtask",
+            "verified_create_project",
+            "verified_set_subtask_parent",
+            "verified_move_tasks",
+            "verified_batch_move",
+            "verified_assign_project_folder",
+        ],
         "desc": "Safe wrappers that execute structural TickTick actions and re-read state to verify the outcome.",
     },
     "🔄 Sync (V2)": {
@@ -180,6 +193,10 @@ def _query_service() -> TickTickQueryService:
     return TickTickQueryService(client)
 
 
+def _preset_store() -> QueryPresetStore:
+    return QueryPresetStore(STATE_DIRECTORY)
+
+
 def _make_task_filter_spec(
     project_ids: Optional[list[str]] = None,
     project_names: Optional[list[str]] = None,
@@ -260,6 +277,7 @@ __all__ = [
     "_task_dict",
     "_model_list",
     "_query_service",
+    "_preset_store",
     "_make_task_filter_spec",
     "client",
     "TickTickAPIError",

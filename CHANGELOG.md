@@ -12,6 +12,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Query / Search layer** — `workspace_map`, `query_projects`, `query_folders`, `query_tasks`, `query_notes`, `query_agenda`, and `query_task_history`.
 - **Ready-made read views** — `tasks_of_today`, `events_of_today`, `overdue_tasks`, and `stale_tasks`.
 - **Operational dashboards/views** — `week_agenda`, `upcoming_tasks`, and `priority_dashboard` for common planning and triage flows.
+- **Planning overview** — `week_overview` separates timed events, due tasks, and overdue tasks into a single planning-oriented response.
+- **Saved query presets** — `list_query_presets`, `save_query_preset`, `run_query_preset`, and `delete_query_preset` persist reusable filters locally.
+- **Verified project/move helpers** — `verified_create_project` and `verified_batch_move` add project existence checks and rollback hints for failed move verification.
 - **Verified structural actions** — `create_subtask`, `verified_set_subtask_parent`, `verified_move_tasks`, and `verified_assign_project_folder`.
 - **Structured filters** — folder/project scope, tags, priorities, reminders, recurrence, checklist presence, hierarchy shape, and project kind filters.
 - **Range-aware agenda access** — date ranges, datetime windows, and HH:MM time windows for scheduled items.

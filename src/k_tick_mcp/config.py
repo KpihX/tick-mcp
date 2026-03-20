@@ -100,6 +100,9 @@ USER_AGENT: str = _api.get("user_agent", "Mozilla/5.0 (X11; Linux x86_64; rv:145
 SESSION_COOKIE_NAME: str = _api.get("session_cookie_name", "t")
 
 SERVER_NAME: str = _config.get("server", {}).get("name", "TickTick-MCP")
+STATE_DIRECTORY: Path = Path(
+    _config.get("server", {}).get("state_directory", "~/.mcps/ticktick")
+).expanduser()
 
 # ── V2 device fingerprint (X-Device header) ──────────────────────────────────
 _device = _api.get("device", {})

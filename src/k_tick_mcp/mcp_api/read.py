@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 import re
-from typing import Optional
+from typing import Any, Optional
 
-from .core import mcp, _err, _query_service, _make_task_filter_spec, TickTickAPIError
+from .core import mcp, _err, _query_service, _preset_store, _make_task_filter_spec, TickTickAPIError
 
 
 def _local_day_bounds(raw_date: Optional[str]) -> tuple[str, str]:
@@ -397,6 +397,76 @@ def events_of_today(
 
 
 @mcp.tool()
+def week_overview(
+    local_date: Optional[str] = None,
+    days: int = 7,
+    project_ids: Optional[list[str]] = None,
+    project_names: Optional[list[str]] = None,
+    folder_ids: Optional[list[str]] = None,
+    folder_names: Optional[list[str]] = None,
+    tags: Optional[list[str]] = None,
+    text_query: Optional[str] = None,
+    time_from: Optional[str] = None,
+    time_to: Optional[str] = None,
+    limit_per_section: int = 50,
+) -> dict:
+    """
+    Return a planning-oriented overview split into events, due tasks, and overdue tasks.
+
+    [Category: Query & Search]  [Auth: V1 + V2]
+    [Related: week_agenda, upcoming_tasks, overdue_tasks]
+    """
+    events = week_agenda(
+        local_date=local_date,
+        days=days,
+        project_ids=project_ids,
+        project_names=project_names,
+        folder_ids=folder_ids,
+        folder_names=folder_names,
+        tags=tags,
+        text_query=text_query,
+        timed_only=True,
+        time_from=time_from,
+        time_to=time_to,
+        limit=limit_per_section,
+    )
+    due_tasks = upcoming_tasks(
+        local_date=local_date,
+        days=days,
+        project_ids=project_ids,
+        project_names=project_names,
+        folder_ids=folder_ids,
+        folder_names=folder_names,
+        tags=tags,
+        text_query=text_query,
+        limit=limit_per_section,
+    )
+    overdue = overdue_tasks(
+        project_ids=project_ids,
+        project_names=project_names,
+        folder_ids=folder_ids,
+        folder_names=folder_names,
+        tags=tags,
+        text_query=text_query,
+        limit=limit_per_section,
+    )
+    return {
+        "window": {"local_date": local_date, "days": days},
+        "scope": {
+            "project_ids": project_ids,
+            "project_names": project_names,
+            "folder_ids": folder_ids,
+            "folder_names": folder_names,
+            "tags": tags,
+            "text_query": text_query,
+        },
+        "events": events,
+        "due_tasks": due_tasks,
+        "overdue": overdue,
+    }
+
+
+@mcp.tool()
 def week_agenda(
     local_date: Optional[str] = None,
     days: int = 7,
@@ -596,6 +666,96 @@ def priority_dashboard(
         "plan": result.get("plan"),
         "buckets": buckets,
     }
+
+
+@mcp.tool()
+def list_query_presets() -> dict:
+    """
+    List saved reusable query presets.
+
+    [Category: Query & Search]  [Auth: none]
+    [Related: save_query_preset, run_query_preset, delete_query_preset]
+    """
+    try:
+        return _preset_store().list_presets()
+    except ValueError as e:
+        return _err(e)
+
+
+@mcp.tool()
+def save_query_preset(
+    name: str,
+    query_type: str,
+    filters: dict[str, Any],
+    description: Optional[str] = None,
+) -> dict:
+    """
+    Save a reusable query preset.
+
+    [Category: Query & Search]  [Auth: none]
+    [Related: list_query_presets, run_query_preset, delete_query_preset]
+    """
+    try:
+        return _preset_store().save_preset(
+            name=name,
+            query_type=query_type,
+            filters=filters,
+            description=description,
+        )
+    except ValueError as e:
+        return _err(e)
+
+
+@mcp.tool()
+def run_query_preset(name: str, limit_override: Optional[int] = None) -> dict:
+    """
+    Execute a saved query preset.
+
+    [Category: Query & Search]  [Auth: depends on preset query type]
+    [Related: list_query_presets, save_query_preset, delete_query_preset]
+    """
+    try:
+        preset = _preset_store().get_preset(name)
+        query_type = preset["query_type"]
+        filters = dict(preset.get("filters") or {})
+        if limit_override is not None:
+            filters["limit"] = limit_override
+
+        if query_type == "tasks":
+            result = query_tasks(**filters)
+        elif query_type == "notes":
+            result = query_notes(**filters)
+        elif query_type == "agenda":
+            result = query_agenda(**filters)
+        elif query_type == "history":
+            result = query_task_history(**filters)
+        elif query_type == "week_overview":
+            result = week_overview(**filters)
+        elif query_type == "priority_dashboard":
+            result = priority_dashboard(**filters)
+        else:
+            return _err(ValueError(f"Unsupported preset query_type '{query_type}'"))
+
+        return {
+            "preset": preset,
+            "result": result,
+        }
+    except ValueError as e:
+        return _err(e)
+
+
+@mcp.tool()
+def delete_query_preset(name: str) -> dict:
+    """
+    Delete a saved query preset.
+
+    [Category: Query & Search]  [Auth: none]
+    [Related: list_query_presets, save_query_preset, run_query_preset]
+    """
+    try:
+        return _preset_store().delete_preset(name)
+    except ValueError as e:
+        return _err(e)
 
 
 @mcp.tool()
