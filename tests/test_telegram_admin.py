@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import tick_mcp.telegram_admin as telegram_admin
+import tick_mcp.admin.telegram as telegram_admin
 
 
 def test_dispatch_status(monkeypatch) -> None:

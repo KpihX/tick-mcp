@@ -14,7 +14,7 @@ from collections.abc import Callable
 
 import httpx
 
-from .admin_service import (
+from .service import (
     AdminActionError,
     AdminRefreshInteractionRequired,
     configured_refresh_credentials,
@@ -26,7 +26,7 @@ from .admin_service import (
     status_summary_text,
     urls_summary,
 )
-from .config import TELEGRAM_CHAT_IDS, TELEGRAM_TICK_HOMELAB_TOKEN
+from ..config import TELEGRAM_CHAT_IDS, TELEGRAM_TICK_HOMELAB_TOKEN
 
 
 _log = logging.getLogger("tick_mcp.telegram_admin")

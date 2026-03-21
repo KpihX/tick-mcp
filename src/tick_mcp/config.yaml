@@ -1,6 +1,4 @@
 server:
-  name: Tick-MCP
-  version: 0.2.0
   state_directory: ~/.mcps/ticktick
   http:
     host: 127.0.0.1
@@ -57,15 +55,3 @@ env_vars:
   admin_env_file: TICK_MCP_ADMIN_ENV_FILE
   telegram_tick_homelab_token: TELEGRAM_TICK_HOMELAB_TOKEN
   telegram_chat_ids: TELEGRAM_CHAT_IDS
-
-# ── External secrets manager (bw-env) ─────────────────────────────────────────
-# Optional fallback. If bw-env is not installed, this section is ignored.
-# Encapsulated: we only call `bw-env restart` and read env vars from a login
-# shell — we never touch bw-env internal files.
-secrets:
-  # The bw-env CLI command name (must be on PATH).
-  bwenv_command: "bw-env"
-  # Login shell used to re-read env vars after a daemon sync.
-  shell: "zsh"
-  # Seconds to wait after 'bw-env restart' for the daemon to sync.
-  restart_wait: 7

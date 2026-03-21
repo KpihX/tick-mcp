@@ -5,8 +5,8 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-import tick_mcp.admin_service as admin_service
-import tick_mcp.cli as cli
+import tick_mcp.admin.service as admin_service
+import tick_mcp.admin.cli as cli
 
 
 runner = CliRunner()

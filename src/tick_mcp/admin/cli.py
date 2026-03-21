@@ -25,7 +25,7 @@ from dotenv import set_key, dotenv_values
 from rich.console import Console
 from rich.table import Table
 from rich import box
-from .admin_service import (
+from .service import (
     API_EXPIRES_AT_KEY,
     APPROX_SESSION_TTL,
     SESSION_EXPIRES_AT_KEY,
@@ -34,7 +34,7 @@ from .admin_service import (
     set_api_token as service_set_api_token,
     set_session_token as service_set_session_token,
 )
-from .config import (
+from ..config import (
     ADMIN_ENV_PATH,
     V2_SIGNON_URL, V2_MFA_VERIFY_URL, V2_LOGIN_HEADERS,
     SIGNON_PARAMS, API_TIMEOUT, WEB_ORIGIN,
@@ -42,9 +42,8 @@ from .config import (
 )
 
 # ─── Paths ────────────────────────────────────────────────────────────────────────────
-_PACKAGE_DIR = Path(__file__).resolve().parent
 _DOTENV_PATH = ADMIN_ENV_PATH
-_LOG_DIR = _PACKAGE_DIR.parent.parent.parent / "logs"   # repo root / logs/
+_LOG_DIR = ADMIN_ENV_PATH.parent / "logs"
 _LOG_FILE = _LOG_DIR / "ticktick_admin_debug.log"
 
 # ─── Debug logger ─────────────────────────────────────────────────────────────────────

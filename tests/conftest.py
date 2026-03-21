@@ -3,16 +3,14 @@ Shared fixtures for the TickTick MCP test suite.
 
 Fixture hierarchy:
   - Unit tests   → mock everything, no I/O.
-  - Integration  → real bw-env, real .env, real os.environ (no network).
+  - Integration  → real login-shell environment, real .env, real os.environ (no network).
   - Live tests   → hit the actual TickTick API (opt-in via `pytest -m live`).
 """
 from __future__ import annotations
 
 import os
 import shutil
-import importlib
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -59,32 +57,29 @@ def fake_env(monkeypatch):
 
 @pytest.fixture()
 def no_bwenv(monkeypatch):
-    """Make _bwenv_available() return False (simulate bw-env not installed)."""
-    monkeypatch.setattr(shutil, "which", lambda cmd: None)
+    """Disable Tier 2 login-shell reads for isolated unit tests."""
+    import tick_mcp.config as config_mod
+
+    monkeypatch.setattr(config_mod, "_shell_read_env", lambda _key: None)
 
 
 @pytest.fixture()
 def mock_bwenv(monkeypatch):
-    """Make _bwenv_available() return True without needing the real binary."""
-    original_which = shutil.which
+    """Keep a named fixture for tests that explicitly stub login-shell reads."""
+    import tick_mcp.config as config_mod
 
-    def _patched_which(cmd):
-        if cmd == "bw-env":
-            return "/usr/local/bin/bw-env"  # fake path
-        return original_which(cmd)
-
-    monkeypatch.setattr(shutil, "which", _patched_which)
+    monkeypatch.setattr(config_mod, "_shell_read_env", lambda _key: None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Integration-level fixtures (real system, real bw-env)
+#  Integration-level fixtures (real system, real login-shell environment)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.fixture()
 def require_bwenv():
-    """Skip the test if bw-env binary is not on PATH."""
-    if shutil.which("bw-env") is None:
-        pytest.skip("bw-env not installed — skipping integration test")
+    """Skip the test if zsh is not available for login-shell resolution."""
+    if shutil.which("zsh") is None:
+        pytest.skip("zsh is not installed — skipping integration test")
 
 
 @pytest.fixture()

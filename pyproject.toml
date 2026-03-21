@@ -30,7 +30,7 @@ dependencies = [
 
 [project.scripts]
 tick-mcp = "tick_mcp:main"
-tick-admin = "tick_mcp.cli:main"
+tick-admin = "tick_mcp.admin.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/kpihx/tick-mcp"
@@ -49,7 +49,7 @@ dev = [
 testpaths = ["tests"]
 markers = [
     "unit: pure logic, no I/O, no network, no secrets (fast)",
-    "integration: needs bw-env on PATH and real secrets in vault",
+    "integration: needs zsh login-shell access and real secrets in the environment",
     "live: hits the real TickTick API (slow, rate-limited)",
 ]
 # Default: run unit + integration.  Use `pytest -m live` for live tests.

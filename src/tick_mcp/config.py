@@ -1,51 +1,10 @@
-"""
-Configuration for the TickTick MCP Server.
-
-━━━ Authentication overview ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-V1 — Official Open API  (TICKTICK_API_TOKEN)  [REQUIRED]
-  Base URL : https://api.ticktick.com/open/v1
-  Docs     : https://developer.ticktick.com/docs#/openapi
-  Auth     : Bearer token in Authorization header
-  Scope    : Tasks + Projects CRUD only
-  Stable   : Yes — versioned, officially maintained
-
-V2 — Unofficial Web API  [OPTIONAL — unlocks most features]
-  Base URL : https://api.ticktick.com/api/v2
-  Auth     : Session cookie `t=<token>` + X-Device header
-  Scope    : Full — tags, habits, focus/pomodoro, folders, columns,
-             batch ops, completed/deleted tasks, sync, user stats
-  Stable   : Fragile — reverse-engineered from the web app, no versioning.
-             Session token typically expires after ~30 days.
-
-━━━ Secrets loading order (2-tier fallback) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Tier 1 — .env file in this package + inherited os.environ.
-            When bw-env is active, os.environ already contains all secrets
-            (injected by load.sh via .zshrc at shell startup).
-
-  Tier 2 — If tokens are missing from os.environ:
-            1. Run `bw-env restart` (triggers a Zenity password popup if locked).
-            2. Wait a configurable delay for the daemon to sync.
-            3. Spawn a login shell (`zsh -l -c ...`) to re-read the freshly
-               injected env vars — respecting bw-env's public API only.
-            4. If still missing → raise SecretsUnavailableError with diagnostics.
-
-  For TICKTICK_SESSION_TOKEN: values resolved from Tier 2 are written back
-  to .env (local cache) so subsequent cold starts don't need the vault.
-  TICKTICK_API_TOKEN is NEVER written to .env (sensitive — vault only).
-
-  If bw-env is not installed (command not found) → Tier 2 is a silent no-op.
-
-See .env.example for the full list of variables and step-by-step instructions.
-"""
+"""Configuration and secret resolution for tick-mcp."""
 from __future__ import annotations
 
 import logging
 import os
-import shutil
 import subprocess
-import time
+import tomllib
 import yaml
 from pathlib import Path
 from functools import lru_cache
@@ -54,6 +13,8 @@ from dotenv import load_dotenv
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 _PACKAGE_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _PACKAGE_DIR.parent.parent
+_PYPROJECT_PATH = _PROJECT_ROOT / "pyproject.toml"
 CONFIG_PATH = _PACKAGE_DIR / "config.yaml"
 _DEFAULT_DOTENV_PATH = _PACKAGE_DIR / ".env"
 
@@ -72,8 +33,27 @@ def load_config(config_path=CONFIG_PATH) -> dict:
             return {}
 
 
+@lru_cache(maxsize=1)
+def _load_project_metadata(pyproject_path: Path = _PYPROJECT_PATH) -> dict[str, str]:
+    """Read project metadata directly from pyproject.toml."""
+    if not pyproject_path.exists():
+        return {}
+    with pyproject_path.open("rb") as handle:
+        data = tomllib.load(handle)
+    project = data.get("project", {})
+    name = str(project.get("name", "")).strip()
+    version = str(project.get("version", "")).strip()
+    result: dict[str, str] = {}
+    if name:
+        result["name"] = name
+    if version:
+        result["version"] = version
+    return result
+
+
 # ─── Global typed constants ───────────────────────────────────────────────────
 _config = load_config()
+_project_meta = _load_project_metadata()
 _api = _config.get("api", {})
 _server = _config.get("server", {})
 _server_http = _server.get("http", {})
@@ -86,7 +66,7 @@ def _read_env_override(name: str, default: str) -> str:
 
 
 def _package_version(default: str) -> str:
-    """Read the installed package version, or fall back to config metadata."""
+    """Read the installed package version, or fall back to pyproject metadata."""
     try:
         return pkg_version("tick-mcp")
     except PackageNotFoundError:
@@ -110,8 +90,8 @@ API_TIMEOUT: int = _api.get("timeout", 15)
 USER_AGENT: str = _api.get("user_agent", "Mozilla/5.0 (X11; Linux x86_64; rv:145.0) Gecko/20100101 Firefox/145.0")
 SESSION_COOKIE_NAME: str = _api.get("session_cookie_name", "t")
 
-SERVER_NAME: str = _server.get("name", "Tick-MCP")
-APP_VERSION: str = _package_version(str(_server.get("version", "0.2.0")))
+SERVER_NAME: str = _project_meta.get("name", "tick-mcp")
+APP_VERSION: str = _package_version(_project_meta.get("version", "0.0.0"))
 STATE_DIRECTORY: Path = Path(
     _server.get("state_directory", "~/.mcps/ticktick")
 ).expanduser()
@@ -193,16 +173,6 @@ TELEGRAM_CHAT_IDS: tuple[str, ...] = tuple(
     if chat_id.strip()
 )
 
-# ─── Secrets manager fallback (bw-env) ───────────────────────────────────────
-_secrets_cfg = _config.get("secrets", {})
-_BWENV_CMD: str = _secrets_cfg.get("bwenv_command", "bw-env")
-_SHELL: str = _secrets_cfg.get("shell", "zsh")
-_RESTART_WAIT: int = _secrets_cfg.get("restart_wait", 20)
-
-# Keys that bw-env is expected to provide for this MCP.
-_MANAGED_KEYS: tuple[str, ...] = (ENV_API_TOKEN, ENV_SESSION_TOKEN)
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Custom Error Classes
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -241,33 +211,27 @@ class SessionTokenExpiredError(RuntimeError):
             f"\nRefresh steps attempted:{bullet}{bullet.join(tried)}"
             "\n\nTo fix:\n"
             "  1. Log into TickTick in your browser and copy the new session cookie.\n"
-            "  2. Update the value in your Vaultwarden vault (global_env item).\n"
-            "  3. Wait ≤5 min for bw-env daemon to sync, or run: bw-env sync\n"
-            "  4. Or set it directly: tick-admin session set <token>"
+            "  2. Refresh your environment secrets in a login shell.\n"
+            "  3. Or set it directly: tick-admin session set <token>"
         )
         super().__init__(msg)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Tier 2: bw-env interaction (encapsulated — CLI only, no internal files)
+#  Tier 2: login-shell environment re-read
 # ═══════════════════════════════════════════════════════════════════════════════
-
-def _bwenv_available() -> bool:
-    """Check if the bw-env command is installed (on PATH)."""
-    return shutil.which(_BWENV_CMD) is not None
-
 
 def _shell_read_env(key: str) -> str | None:
     """
-    Spawn a login shell to read a single env var injected by bw-env.
+    Spawn a login shell to read a single environment variable.
 
-    A login shell sources .zshrc → load.sh → /dev/shm secrets, giving us the
-    freshly-loaded value without knowing anything about bw-env internals.
+    This is the canonical fallback when the current process environment is
+    missing a required secret but the user's login shell knows how to load it.
     Returns None if the var is unset or the shell fails.
     """
     try:
         result = subprocess.run(
-            [_SHELL, "-l", "-c", f'printf "%s" "${{{key}}}"'],
+            ["zsh", "-l", "-c", f'printf "%s" "${{{key}}}"'],
             capture_output=True,
             text=True,
             timeout=5,
@@ -277,53 +241,6 @@ def _shell_read_env(key: str) -> str | None:
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
         _log.debug("Login shell read for %s failed: %s", key, exc)
         return None
-
-
-def _try_bwenv_restart() -> bool:
-    """
-    Run `bw-env restart` and wait for the daemon to sync.
-
-    bw-env restart triggers `systemctl --user restart bw-env-sync.service`,
-    which may display a Zenity password popup if the vault is locked.
-
-    Returns True if after waiting, at least one of the managed keys becomes
-    available via a login shell.  Returns False otherwise (user cancelled,
-    wrong password, daemon error, timeout …).
-    """
-    if not _bwenv_available():
-        _log.debug("bw-env not found on PATH — skipping restart.")
-        return False
-
-    _log.info(
-        "TickTick tokens not found in environment. "
-        "Running '%s restart' (may prompt for vault password)…",
-        _BWENV_CMD,
-    )
-    try:
-        subprocess.run(
-            [_BWENV_CMD, "restart"],
-            timeout=10,
-            capture_output=True,
-            check=False,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
-        _log.warning("'%s restart' failed: %s", _BWENV_CMD, exc)
-        return False
-
-    # Wait for the daemon to complete its sync cycle.
-    _log.info("Waiting up to %ds for daemon to sync secrets…", _RESTART_WAIT)
-    deadline = time.monotonic() + _RESTART_WAIT
-    while time.monotonic() < deadline:
-        time.sleep(2)
-        # Check if any of our keys are now available via login shell
-        for key in _MANAGED_KEYS:
-            if _shell_read_env(key):
-                _log.info("Secrets available after daemon sync.")
-                return True
-
-    _log.warning("Timeout: secrets still unavailable after %ds.", _RESTART_WAIT)
-    return False
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Dotenv write-back (session token only — not for sensitive API token)
@@ -393,32 +310,15 @@ def _resolve_env(
             _log.debug("%s resolved from Tier 1 (os.environ).", key)
             return val
 
-    # ── Tier 2: bw-env via login shell (+ restart if needed) ──
-    if _bwenv_available():
-        # 2a: maybe bw-env already synced but this process missed it
-        tried.append("Tier 2a: login shell read (bw-env already synced)")
-        val = _shell_read_env(key)
-        if val:
-            _log.info("%s resolved from Tier 2a (login shell).", key)
-            os.environ[key] = val
-            if cache_to_dotenv:
-                _write_to_dotenv(key, val)
-            return val
-
-        # 2b: trigger daemon restart → wait → re-read
-        tried.append(
-            f"Tier 2b: '{_BWENV_CMD} restart' + wait {_RESTART_WAIT}s + login shell read"
-        )
-        if _try_bwenv_restart():
-            val = _shell_read_env(key)
-            if val:
-                _log.info("%s resolved from Tier 2b (after daemon restart).", key)
-                os.environ[key] = val
-                if cache_to_dotenv:
-                    _write_to_dotenv(key, val)
-                return val
-    else:
-        tried.append("Tier 2: skipped — bw-env not installed")
+    # ── Tier 2: login shell environment ──
+    tried.append("Tier 2: login shell read via zsh -l -c")
+    val = _shell_read_env(key)
+    if val:
+        _log.info("%s resolved from Tier 2 (login shell).", key)
+        os.environ[key] = val
+        if cache_to_dotenv:
+            _write_to_dotenv(key, val)
+        return val
 
     # ── Not found anywhere ──
     if required:
@@ -426,12 +326,9 @@ def _resolve_env(
             key,
             tried=tried,
             hints=[
-                "Vault is locked — the Zenity password popup may have been dismissed or the password was incorrect.",
-                "Maximum authentication attempts reached (bw-env locks after 3 failures).",
-                f"bw-env daemon not running or crashed — check: {_BWENV_CMD} status",
-                f"Daemon sync failed — check logs: {_BWENV_CMD} logs -n 30",
-                f"The variable '{key}' is not defined in your Vaultwarden vault's global_env item.",
-                "Network issue — Vaultwarden server unreachable during sync.",
+                f"The variable '{key}' is not available in the current process environment.",
+                "Your login shell does not expose the variable either.",
+                "Open a fresh login shell and confirm the variable is exported there.",
                 f"Manual fix: tick-admin token set <value>  or add {key}=<value> to .env",
             ],
         )
@@ -446,7 +343,7 @@ def get_api_token() -> str:
     """
     Reads the V1 OAuth2 Bearer token.
 
-    Resolution: os.environ → bw-env login shell → daemon restart.
+    Resolution: os.environ → login shell fallback.
     Raises SecretsUnavailableError if the token cannot be found anywhere.
     NEVER written back to .env (sensitive secret stays in vault only).
     """
@@ -457,7 +354,7 @@ def get_session_token() -> str | None:
     """
     Reads the V2 session cookie token.
 
-    Resolution with write-back: if found via bw-env but absent from .env,
+    Resolution with write-back: if found via login shell but absent from .env,
     the value is cached to .env for future cold starts (non-sensitive).
     Returns None if not set; client.py will fall back to auto-login.
     """
@@ -466,7 +363,7 @@ def get_session_token() -> str | None:
 
 def refresh_session_from_vault() -> str | None:
     """
-    Force re-read of the V2 session token from bw-env (skip current env).
+    Force re-read of the V2 session token from the login shell (skip current env).
 
     Called by client.py after a 401: we assume the current value is stale
     and go straight to a fresh login shell read.
@@ -505,8 +402,8 @@ def has_v2_auth_in_environment() -> bool:
     """
     Return True if V2 auth material is already present in the current process env.
 
-    This helper is intentionally non-interactive: it must never trigger bw-env,
-    login-shell reads, or daemon restarts. It is safe for `/health` style probes.
+    This helper is intentionally non-interactive: it must never trigger login-
+    shell reads. It is safe for `/health` style probes.
     """
     return bool(os.environ.get(ENV_SESSION_TOKEN)) or bool(
         os.environ.get(ENV_USERNAME) and os.environ.get(ENV_PASSWORD)

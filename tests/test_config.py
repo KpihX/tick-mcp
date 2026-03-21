@@ -1,26 +1,17 @@
-"""
-Tests for tick_mcp.config — 2-tier secrets resolver, bw-env integration.
-
-Markers:
-  @unit        — mocked, no I/O.
-  @integration — real bw-env / real filesystem.
-"""
+"""Tests for tick_mcp.config — 2-tier secrets resolver and login-shell fallback."""
 from __future__ import annotations
 
 import os
 import importlib
-import shutil
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
 import tick_mcp.config as config_mod
 from tick_mcp.config import (
     load_config,
-    _bwenv_available,
     _shell_read_env,
-    _try_bwenv_restart,
     _write_to_dotenv,
     _resolve_env,
     get_api_token,
@@ -53,8 +44,7 @@ class TestLoadConfig:
 
     def test_has_expected_sections(self):
         cfg = load_config(CONFIG_PATH)
-        # config.yaml should have at least "secrets" and "api"
-        assert "secrets" in cfg or "api" in cfg
+        assert "server" in cfg or "api" in cfg
 
     def test_missing_file_returns_empty(self, tmp_path):
         load_config.cache_clear()
@@ -69,17 +59,6 @@ class TestLoadConfig:
         result = load_config(bad_yaml)
         assert result == {}
         load_config.cache_clear()
-
-
-@pytest.mark.unit
-class TestBwenvAvailable:
-    """_bwenv_available(): checks if 'bw-env' is on PATH."""
-
-    def test_available_when_which_returns_path(self, mock_bwenv):
-        assert _bwenv_available() is True
-
-    def test_unavailable_when_which_returns_none(self, no_bwenv):
-        assert _bwenv_available() is False
 
 
 @pytest.mark.unit
@@ -128,15 +107,14 @@ class TestResolveEnvTier1:
 
     def test_skip_tier1_ignores_env(self, fake_env, no_bwenv):
         val = _resolve_env(ENV_API_TOKEN, skip_tier1=True)
-        assert val is None  # should skip env and bw-env unavailable → None
+        assert val is None
 
 
 @pytest.mark.unit
 class TestResolveEnvTier2:
-    """_resolve_env(): Tier 2 via bw-env (mocked)."""
+    """_resolve_env(): Tier 2 via login-shell read (mocked)."""
 
-    def test_tier2a_login_shell_read(self, clean_env, mock_bwenv, monkeypatch):
-        """If Tier 1 misses but login shell finds it, should succeed."""
+    def test_tier2_login_shell_read(self, clean_env, mock_bwenv, monkeypatch):
         monkeypatch.setattr(
             config_mod, "_shell_read_env",
             lambda key: "vault_token_abc123" if key == ENV_API_TOKEN else None,
@@ -145,23 +123,6 @@ class TestResolveEnvTier2:
         assert val == "vault_token_abc123"
         # Should also be injected into os.environ
         assert os.environ.get(ENV_API_TOKEN) == "vault_token_abc123"
-
-    def test_tier2b_restart_then_read(self, clean_env, mock_bwenv, monkeypatch):
-        """If Tier 2a misses but restart succeeds → shell read works."""
-        call_count = {"n": 0}
-
-        def _fake_shell_read(key):
-            call_count["n"] += 1
-            # First call = Tier 2a → None; second call (after restart) → value
-            if call_count["n"] >= 2:
-                return "fresh_token_after_restart"
-            return None
-
-        monkeypatch.setattr(config_mod, "_shell_read_env", _fake_shell_read)
-        monkeypatch.setattr(config_mod, "_try_bwenv_restart", lambda: True)
-
-        val = _resolve_env(ENV_API_TOKEN)
-        assert val == "fresh_token_after_restart"
 
     def test_cache_to_dotenv(self, clean_env, mock_bwenv, monkeypatch, backup_dotenv):
         """cache_to_dotenv=True should write the resolved value to .env."""
@@ -306,20 +267,17 @@ class TestShellReadEnv:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  Integration tests (require real bw-env on PATH)
+#  Integration tests (require real login-shell environment)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.integration
 class TestBwenvIntegration:
-    """Tests that talk to the real bw-env binary. Skipped if bw-env absent."""
-
-    def test_bwenv_is_on_path(self, require_bwenv):
-        assert _bwenv_available() is True
+    """Tests that use the real login-shell fallback."""
 
     def test_shell_read_env_returns_something(self, require_bwenv):
         """
-        If bw-env is running and secrets are synced, at least one of the
-        managed keys should be readable.
+        If the login shell exports TickTick secrets, at least one managed key
+        should be readable.
         """
         results = {
             k: _shell_read_env(k)
@@ -328,7 +286,7 @@ class TestBwenvIntegration:
         # At least one should have a value (if vault is unlocked)
         has_any = any(v for v in results.values())
         if not has_any:
-            pytest.skip("bw-env is installed but vault appears locked or empty")
+            pytest.skip("login shell does not currently expose TickTick secrets")
         assert has_any
 
     def test_get_api_token_real(self, require_bwenv, require_api_token):

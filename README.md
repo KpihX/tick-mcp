@@ -187,7 +187,7 @@ Deployment artifacts are bundled in the repo:
 - `Dockerfile`
 - `deploy/docker-compose.yml`
 - `deploy/docker-compose.override.example.yml`
-- `deploy/.env.example`
+- `src/tick_mcp/.env.example`
 - `.dockerignore`
 - `.gitlab-ci.yml`
 
@@ -247,8 +247,7 @@ For a push on `main` to deploy successfully, the GitLab project must have:
   - `TICKTICK_USERNAME`
   - `TICKTICK_PASSWORD`
   - `TELEGRAM_TICK_HOMELAB_TOKEN`
-    - `TELEGRAM_CHAT_IDS`
-  - `GITHUB_TOKEN`
+  - `TELEGRAM_CHAT_IDS`
 
 Pipeline behavior:
 
@@ -260,9 +259,6 @@ deploy_homelab
 -> writes deploy/.env
 -> docker compose up -d --build
 -> probes /health locally on the docker host
-
-sync_github
--> mirrors main to github.com/kpihx-labs/tick-mcp
 ```
 
 ## MCP Client Integration

@@ -168,14 +168,14 @@ def _v2_call(
     r = _do()
     if r.status_code == 401:
         tried.append("Initial request with cached/env token → 401")
-        # ── Attempt 1: check if bw-env vault has a fresher token ──
+        # ── Attempt 1: check if the login shell exposes a fresher token ──
         fresh = _client_override("refresh_session_from_vault", refresh_session_from_vault)()
         if fresh:
             _set_cached_token(str(fresh))
-            tried.append("bw-env vault returned a NEW token → retrying")
+            tried.append("Login-shell refresh returned a NEW token → retrying")
             r = _do()
         else:
-            tried.append("bw-env vault: same token or unavailable")
+            tried.append("Login-shell refresh: same token or unavailable")
             # ── Attempt 2: fallback to credentials-based re-login ──
             _v2_invalidate()   # stale token → discard
             tried.append("Credentials re-login attempted")

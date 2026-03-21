@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from . import daemon
-from .admin_service import status_summary_text
+from .admin.service import status_summary_text
 from .config import (
     APP_VERSION,
     ENV_API_TOKEN,
@@ -30,7 +30,7 @@ from .config import (
     has_v2_auth_in_environment,
 )
 from .server import mcp
-from .telegram_admin import start_telegram_admin, telegram_admin_enabled
+from .admin.telegram import start_telegram_admin, telegram_admin_enabled
 
 
 def _base_payload() -> dict[str, object]:

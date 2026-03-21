@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import tick_mcp.admin_service as admin_service
+import tick_mcp.admin.service as admin_service
 
 
 def test_set_session_token_writes_persistent_admin_env(monkeypatch, tmp_path: Path) -> None:

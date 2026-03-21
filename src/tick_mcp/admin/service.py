@@ -19,7 +19,7 @@ from typing import Any
 import httpx
 from dotenv import dotenv_values, set_key
 
-from .config import (
+from ..config import (
     ADMIN_ENV_PATH,
     API_TIMEOUT,
     ENV_API_TOKEN,
