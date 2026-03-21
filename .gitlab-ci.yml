@@ -34,25 +34,25 @@ deploy_homelab:
     - main
   needs:
     - validate_project
-    script:
-      - echo "🚀 Deploying tick-mcp to the homelab..."
-      - cd deploy
-      - echo "TICKTICK_API_TOKEN=$TICKTICK_API_TOKEN" > .env
-      - echo "TICKTICK_SESSION_TOKEN=$TICKTICK_SESSION_TOKEN" >> .env
-      - echo "TICKTICK_USERNAME=$TICKTICK_USERNAME" >> .env
-      - echo "TICKTICK_PASSWORD=$TICKTICK_PASSWORD" >> .env
-        - echo "TELEGRAM_TICK_HOMELAB_TOKEN=$TELEGRAM_TICK_HOMELAB_TOKEN" >> .env
-        - echo "TELEGRAM_CHAT_IDS=$TELEGRAM_CHAT_IDS" >> .env
-      - echo "TICK_MCP_HTTP_HOST=0.0.0.0" >> .env
-      - echo "TICK_MCP_HTTP_PORT=8091" >> .env
-      - echo "TICK_MCP_HTTP_MCP_PATH=/mcp" >> .env
-      - echo "TICK_MCP_ADMIN_ENV_FILE=/data/tick-admin.env" >> .env
-      - echo "TICK_MCP_PUBLIC_BASE_URL=https://tick.kpihx-labs.com" >> .env
-      - echo "TICK_MCP_FALLBACK_BASE_URL=https://tick.homelab" >> .env
-      - docker compose config -q
-      - docker compose up -d --build --remove-orphans
-      - curl -fsS http://127.0.0.1:8091/health
-      - docker image prune -f
+  script:
+    - echo "🚀 Deploying tick-mcp to the homelab..."
+    - cd deploy
+    - echo "TICKTICK_API_TOKEN=$TICKTICK_API_TOKEN" > .env
+    - echo "TICKTICK_SESSION_TOKEN=$TICKTICK_SESSION_TOKEN" >> .env
+    - echo "TICKTICK_USERNAME=$TICKTICK_USERNAME" >> .env
+    - echo "TICKTICK_PASSWORD=$TICKTICK_PASSWORD" >> .env
+    - echo "TELEGRAM_TICK_HOMELAB_TOKEN=$TELEGRAM_TICK_HOMELAB_TOKEN" >> .env
+    - echo "TELEGRAM_CHAT_IDS=$TELEGRAM_CHAT_IDS" >> .env
+    - echo "TICK_MCP_HTTP_HOST=0.0.0.0" >> .env
+    - echo "TICK_MCP_HTTP_PORT=8091" >> .env
+    - echo "TICK_MCP_HTTP_MCP_PATH=/mcp" >> .env
+    - echo "TICK_MCP_ADMIN_ENV_FILE=/data/tick-admin.env" >> .env
+    - echo "TICK_MCP_PUBLIC_BASE_URL=https://tick.kpihx-labs.com" >> .env
+    - echo "TICK_MCP_FALLBACK_BASE_URL=https://tick.homelab" >> .env
+    - docker compose config -q
+    - docker compose up -d --build --remove-orphans
+    - curl -fsS http://127.0.0.1:8091/health
+    - docker image prune -f
 
 sync_github:
   stage: sync
