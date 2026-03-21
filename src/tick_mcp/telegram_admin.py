@@ -26,10 +26,7 @@ from .admin_service import (
     status_summary_text,
     urls_summary,
 )
-from .config import (
-    TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS,
-    TELEGRAM_TICK_HOMELAB_TOKEN,
-)
+from .config import TELEGRAM_CHAT_IDS, TELEGRAM_TICK_HOMELAB_TOKEN
 
 
 _log = logging.getLogger("tick_mcp.telegram_admin")
@@ -159,13 +156,13 @@ def start_telegram_admin(restart_callback: Callable[[], None]) -> None:
     if not TELEGRAM_TICK_HOMELAB_TOKEN:
         _log.info("Telegram admin disabled: token missing.")
         return
-    if not TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS:
+    if not TELEGRAM_CHAT_IDS:
         _log.warning("Telegram admin disabled: allowed chat IDs missing.")
         return
     _restart_callback = restart_callback
     bot = TelegramAdminBot(
         token=TELEGRAM_TICK_HOMELAB_TOKEN,
-        allowed_chat_ids=TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS,
+        allowed_chat_ids=TELEGRAM_CHAT_IDS,
     )
     thread = threading.Thread(target=bot.run_forever, daemon=True, name="tick-mcp-telegram-admin")
     thread.start()
@@ -173,4 +170,4 @@ def start_telegram_admin(restart_callback: Callable[[], None]) -> None:
 
 
 def telegram_admin_enabled() -> bool:
-    return bool(TELEGRAM_TICK_HOMELAB_TOKEN and TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS)
+    return bool(TELEGRAM_TICK_HOMELAB_TOKEN and TELEGRAM_CHAT_IDS)

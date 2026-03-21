@@ -127,7 +127,7 @@ cp src/tick_mcp/.env.example src/tick_mcp/.env
 | `TICKTICK_PASSWORD` | No | TickTick password, used by non-interactive session refresh flows |
 | `TICK_MCP_ADMIN_ENV_FILE` | No | Persistent admin env file path. In Docker, use `/data/tick-admin.env`. |
 | `TELEGRAM_TICK_HOMELAB_TOKEN` | No | Telegram bot token for the homelab admin bridge |
-| `TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS` | No | Comma-separated Telegram chat IDs allowed to issue admin commands |
+| `TELEGRAM_CHAT_ID` | No | Comma-separated Telegram chat IDs allowed to issue admin commands |
 
 **Getting a V1 token (simplest):**
 
@@ -247,7 +247,7 @@ For a push on `main` to deploy successfully, the GitLab project must have:
   - `TICKTICK_USERNAME`
   - `TICKTICK_PASSWORD`
   - `TELEGRAM_TICK_HOMELAB_TOKEN`
-  - `TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS`
+    - `TELEGRAM_CHAT_ID`
   - `GITHUB_TOKEN`
 
 Pipeline behavior:

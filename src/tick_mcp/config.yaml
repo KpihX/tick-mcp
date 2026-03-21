@@ -56,7 +56,7 @@ env_vars:
   fallback_base_url: TICK_MCP_FALLBACK_BASE_URL
   admin_env_file: TICK_MCP_ADMIN_ENV_FILE
   telegram_tick_homelab_token: TELEGRAM_TICK_HOMELAB_TOKEN
-  telegram_tick_homelab_allowed_chat_ids: TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS
+  telegram_chat_id: TELEGRAM_CHAT_ID
 
 # ── External secrets manager (bw-env) ─────────────────────────────────────────
 # Optional fallback. If bw-env is not installed, this section is ignored.

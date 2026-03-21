@@ -21,7 +21,7 @@ from .config import (
     APP_VERSION,
     ENV_API_TOKEN,
     ENV_SESSION_TOKEN,
-    ENV_TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS,
+    ENV_TELEGRAM_CHAT_ID,
     ENV_TELEGRAM_TICK_HOMELAB_TOKEN,
     HTTP_FALLBACK_BASE_URL,
     HTTP_MCP_PATH,
@@ -74,7 +74,7 @@ async def admin_status(_request) -> JSONResponse:
         "telegram_admin": {
             "planned": False,
             "token_env": ENV_TELEGRAM_TICK_HOMELAB_TOKEN,
-            "allowed_chat_ids_env": ENV_TELEGRAM_TICK_HOMELAB_ALLOWED_CHAT_IDS,
+            "allowed_chat_ids_env": ENV_TELEGRAM_CHAT_ID,
             "configured": bool(os.environ.get(ENV_TELEGRAM_TICK_HOMELAB_TOKEN)),
             "enabled": telegram_admin_enabled(),
         },
