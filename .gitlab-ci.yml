@@ -57,6 +57,7 @@ deploy_homelab:
     - echo "TICK_MCP_PUBLIC_BASE_URL=https://tick.kpihx-labs.com" >> .env
     - echo "TICK_MCP_FALLBACK_BASE_URL=https://tick.homelab" >> .env
     - docker compose -p tick-mcp config -q
+    - docker rm -f tick-mcp || true
     - docker compose -p tick-mcp up -d --build --remove-orphans
     - |
       for attempt in $(seq 1 20); do

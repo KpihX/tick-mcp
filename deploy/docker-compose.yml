@@ -42,3 +42,4 @@ networks:
 
 volumes:
   tick_mcp_data:
+    name: deploy_tick_mcp_data
