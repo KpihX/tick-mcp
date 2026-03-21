@@ -13,6 +13,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **TODO realigned** — stale rollout items were replaced by follow-up work that still matters after the first successful homelab deployment.
 - **Admin help unified** — one shared capability summary now feeds CLI (`tick-admin guide`), HTTP (`/admin/help`), and Telegram (`/help`).
 - **Telegram poller diagnostics hardened** — `/admin/status` now exposes live Telegram admin runtime state, and the poll loop records the last poll, last update, last command, and last error.
+- **Telegram poller bootstrap fixed** — the HTTP entrypoint now starts the Telegram admin thread explicitly before serving, instead of depending only on the app startup hook.
 
 ## [0.2.0] — 2026-03-20
 

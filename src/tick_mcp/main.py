@@ -39,6 +39,7 @@ def serve():
 def serve_http():
     """Start the TickTick MCP server in streamable HTTP mode."""
     import uvicorn
+    from .http_app import app as http_app, ensure_telegram_admin_started
 
     pid = os.getpid()
     daemon.write_pid(pid)
@@ -46,7 +47,8 @@ def serve_http():
         f"[green]TickTick MCP HTTP Server starting (PID {pid}) on {HTTP_HOST}:{HTTP_PORT}{HTTP_MCP_PATH}...[/green]"
     )
     try:
-        uvicorn.run("tick_mcp.http_app:app", host=HTTP_HOST, port=HTTP_PORT, reload=False)
+        ensure_telegram_admin_started()
+        uvicorn.run(http_app, host=HTTP_HOST, port=HTTP_PORT, reload=False)
     finally:
         daemon.clear_pid()
 

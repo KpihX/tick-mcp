@@ -112,8 +112,12 @@ def _restart_process() -> None:
     os._exit(0)
 
 
+def ensure_telegram_admin_started() -> None:
+    start_telegram_admin(_restart_process)
+
+
 app = mcp.streamable_http_app()
-app.add_event_handler("startup", lambda: start_telegram_admin(_restart_process))
+app.add_event_handler("startup", ensure_telegram_admin_started)
 app.router.routes.insert(0, Route("/health", health))
 app.router.routes.insert(1, Route("/admin/status", admin_status))
 app.router.routes.insert(2, Route("/admin/help", admin_help))
