@@ -31,6 +31,6 @@ def test_admin_status_mentions_ssh_and_telegram(monkeypatch) -> None:
     assert data["product"] == "tick-mcp"
     assert data["admin"]["ssh_admin"]["supported"] is True
     assert data["admin"]["telegram_admin"]["token_env"] == "TELEGRAM_TICK_HOMELAB_TOKEN"
-    assert data["admin"]["telegram_admin"]["allowed_chat_ids_env"] == "TELEGRAM_CHAT_ID"
+    assert data["admin"]["telegram_admin"]["allowed_chat_ids_env"] == "TELEGRAM_CHAT_IDS"
     assert data["admin"]["telegram_admin"]["enabled"] is True
     assert data["admin"]["status_summary"] == "status-ok"

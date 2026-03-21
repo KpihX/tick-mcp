@@ -156,9 +156,9 @@ ENV_TELEGRAM_TICK_HOMELAB_TOKEN: str = _env_vars.get(
     "telegram_tick_homelab_token",
     "TELEGRAM_TICK_HOMELAB_TOKEN",
 )
-ENV_TELEGRAM_CHAT_ID: str = _env_vars.get(
-    "telegram_chat_id",
-    "TELEGRAM_CHAT_ID",
+ENV_TELEGRAM_CHAT_IDS: str = _env_vars.get(
+    "telegram_chat_ids",
+    "TELEGRAM_CHAT_IDS",
 )
 
 _DOTENV_PATH = Path(
@@ -183,13 +183,13 @@ HTTP_FALLBACK_BASE_URL: str = _read_env_override(
 )
 ADMIN_ENV_PATH: Path = _DOTENV_PATH
 TELEGRAM_TICK_HOMELAB_TOKEN: str | None = os.environ.get(ENV_TELEGRAM_TICK_HOMELAB_TOKEN)
-TELEGRAM_CHAT_ID_RAW: str = os.environ.get(
-    ENV_TELEGRAM_CHAT_ID,
+TELEGRAM_CHAT_IDS_RAW: str = os.environ.get(
+    ENV_TELEGRAM_CHAT_IDS,
     "",
 )
 TELEGRAM_CHAT_IDS: tuple[str, ...] = tuple(
     chat_id.strip()
-    for chat_id in TELEGRAM_CHAT_ID_RAW.split(",")
+    for chat_id in TELEGRAM_CHAT_IDS_RAW.split(",")
     if chat_id.strip()
 )
 

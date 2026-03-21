@@ -41,8 +41,8 @@ deploy_homelab:
       - echo "TICKTICK_SESSION_TOKEN=$TICKTICK_SESSION_TOKEN" >> .env
       - echo "TICKTICK_USERNAME=$TICKTICK_USERNAME" >> .env
       - echo "TICKTICK_PASSWORD=$TICKTICK_PASSWORD" >> .env
-      - echo "TELEGRAM_TICK_HOMELAB_TOKEN=$TELEGRAM_TICK_HOMELAB_TOKEN" >> .env
-        - echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID" >> .env
+        - echo "TELEGRAM_TICK_HOMELAB_TOKEN=$TELEGRAM_TICK_HOMELAB_TOKEN" >> .env
+        - echo "TELEGRAM_CHAT_IDS=$TELEGRAM_CHAT_IDS" >> .env
       - echo "TICK_MCP_HTTP_HOST=0.0.0.0" >> .env
       - echo "TICK_MCP_HTTP_PORT=8091" >> .env
       - echo "TICK_MCP_HTTP_MCP_PATH=/mcp" >> .env
