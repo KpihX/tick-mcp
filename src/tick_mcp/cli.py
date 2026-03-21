@@ -473,8 +473,7 @@ def _handle_code_flow(username: str, password: str, auth_id: str, signon_data: d
 
 @app.command()
 def status():
-    """Show current credential status (reads .env on disk)."""
-    env = dotenv_values(_DOTENV_PATH) if _DOTENV_PATH.exists() else {}
+    """Show current credential status (.env on disk + runtime fallback)."""
 
     tbl = Table(
         title=f".env status  [dim]({_DOTENV_PATH})[/dim]",
@@ -487,18 +486,23 @@ def status():
     tbl.add_column("Value (masked)")
     tbl.add_column("Timing")
 
-    def _row(key: str, *, timing: str = "[dim]n/a[/dim]"):
-        val = env.get(key) or None
-        status_str = "[green]✓ set[/green]" if val else "[red]✗ missing[/red]"
-        tbl.add_row(key, status_str, _mask(val), timing if val else "[dim]n/a[/dim]")
-
-    api_expires_at = _parse_epoch(env.get(API_EXPIRES_AT_KEY))
-    session_obtained_at = _parse_epoch(env.get(SESSION_OBTAINED_AT_KEY))
-    session_expires_at = _parse_epoch(env.get(SESSION_EXPIRES_AT_KEY))
+    def _row(key: str, present: bool, masked: str, *, timing: str = "[dim]n/a[/dim]"):
+        status_str = "[green]✓ set[/green]" if present else "[red]✗ missing[/red]"
+        tbl.add_row(key, status_str, masked, timing if present else "[dim]n/a[/dim]")
 
     service_status = get_status_payload()
-    _row(ENV_API_TOKEN, timing=service_status.api_timing)
-    _row(ENV_SESSION_TOKEN, timing=service_status.session_timing)
+    _row(
+        ENV_API_TOKEN,
+        service_status.api_token_present,
+        service_status.api_token_masked,
+        timing=service_status.api_timing,
+    )
+    _row(
+        ENV_SESSION_TOKEN,
+        service_status.session_token_present,
+        service_status.session_token_masked,
+        timing=service_status.session_timing,
+    )
 
     console.print()
     console.print(tbl)
@@ -506,7 +510,10 @@ def status():
 
     if not _DOTENV_PATH.exists():
         console.print(f"[yellow]No .env file found at {_DOTENV_PATH}[/yellow]")
-        console.print("[dim]Run any 'set' or 'refresh' command to create it.[/dim]")
+        if service_status.api_token_present or service_status.session_token_present:
+            console.print("[dim]Using runtime environment fallback from the current process.[/dim]")
+        else:
+            console.print("[dim]Run any 'set' or 'refresh' command to create it.[/dim]")
 
 
 # ─── token ────────────────────────────────────────────────────────────────────
