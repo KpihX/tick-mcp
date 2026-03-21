@@ -24,6 +24,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Deploy script repaired** — the homelab deploy job now writes each `.env` line and runs `docker compose` as separate YAML commands, so GitLab actually rebuilds and recreates the container.
 - **Homelab deploy made idempotent** — the deploy job now removes any stale `tick-mcp` container before `docker compose up`, and the compose volume is pinned to the existing `deploy_tick_mcp_data` volume so `/data` survives the project-name cleanup.
 - **Password rendering hardened** — the admin status surfaces now render `TICKTICK_PASSWORD` as fully hidden instead of showing a partial masked preview.
+- **CLI help rendering fixed** — `tick-admin help` now prints the shared admin help with Rich markup disabled, preserving optional argument markers like `[lines]` and `[expires_at_iso]`.
 - **Validation runner hardened** — `validate_project` now disables aggressive Git clean so the shell-based homelab runner no longer dies during checkout when old root-owned build artifacts exist.
 - **Telegram poller diagnostics hardened** — `/admin/status` now exposes live Telegram admin runtime state, and the poll loop records the last poll, last update, last command, and last error.
 - **Telegram poller bootstrap fixed** — the HTTP entrypoint now starts the Telegram admin thread explicitly before serving, instead of depending only on the app startup hook.

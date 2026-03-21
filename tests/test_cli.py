@@ -107,3 +107,12 @@ def test_session_refresh_writes_token_and_approximate_expiration(monkeypatch, tm
     assert f"TICKTICK_SESSION_TOKEN_OBTAINED_AT={int(now.timestamp())}" in text
     assert f"TICKTICK_SESSION_TOKEN_EXPIRES_AT={int((now + timedelta(days=30)).timestamp())}" in text
     assert "Approximate expiration: 2026-04-19 12:00 UTC" in result.stdout
+
+
+def test_help_preserves_optional_argument_markers() -> None:
+    result = runner.invoke(cli.app, ["help"])
+
+    assert result.exit_code == 0
+    assert "/logs [lines]" in result.stdout
+    assert "/api_set <token> [expires_at_iso]" in result.stdout
+    assert "tick-admin session refresh [--username <email>] [--password <value>]" in result.stdout

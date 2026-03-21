@@ -515,7 +515,7 @@ def status():
 @app.command("help")
 def help_command():
     """Show the shared admin capability summary for CLI, HTTP, and Telegram."""
-    console.print(admin_help_text())
+    console.print(admin_help_text(), markup=False)
 
 
 @app.command("logs")
