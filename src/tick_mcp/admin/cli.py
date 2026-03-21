@@ -30,6 +30,7 @@ from .service import (
     APPROX_SESSION_TTL,
     SESSION_EXPIRES_AT_KEY,
     SESSION_OBTAINED_AT_KEY,
+    admin_help_text,
     get_status_payload,
     set_api_token as service_set_api_token,
     set_session_token as service_set_session_token,
@@ -513,6 +514,12 @@ def status():
             console.print("[dim]Using runtime environment fallback from the current process.[/dim]")
         else:
             console.print("[dim]Run any 'set' or 'refresh' command to create it.[/dim]")
+
+
+@app.command("guide")
+def guide():
+    """Show the shared admin capability summary for CLI, HTTP, and Telegram."""
+    console.print(admin_help_text())
 
 
 # ─── token ────────────────────────────────────────────────────────────────────

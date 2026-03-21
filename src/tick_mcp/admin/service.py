@@ -351,7 +351,36 @@ def urls_summary() -> str:
             f"- fallback: {HTTP_FALLBACK_BASE_URL}",
             f"- MCP: {HTTP_PUBLIC_BASE_URL}{HTTP_MCP_PATH}",
             f"- admin status: {HTTP_PUBLIC_BASE_URL}/admin/status",
+            f"- admin help: {HTTP_PUBLIC_BASE_URL}/admin/help",
             f"- health: {HTTP_PUBLIC_BASE_URL}/health",
+        ]
+    )
+
+
+def admin_help_text() -> str:
+    return "\n".join(
+        [
+            "tick-admin capabilities",
+            "- CLI:",
+            "  - tick-admin status",
+            "  - tick-admin guide",
+            "  - tick-admin token set <token> [--expires-at ISO]",
+            "  - tick-admin session set <token> [--ttl-days N|--expires-at ISO]",
+            "  - tick-admin session refresh [--username <email>]",
+            "- HTTP:",
+            "  - GET /health",
+            "  - GET /admin/status",
+            "  - GET /admin/help",
+            "- Telegram:",
+            "  - /help",
+            "  - /status",
+            "  - /health",
+            "  - /urls",
+            "  - /logs [lines]",
+            "  - /api_token_set <token> [expires_at_iso]",
+            "  - /session_set <token> [ttl_days]",
+            "  - /session_refresh",
+            "  - /restart",
         ]
     )
 

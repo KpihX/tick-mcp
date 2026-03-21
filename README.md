@@ -138,6 +138,12 @@ This provides two commands:
 | `tick-mcp` | Start the MCP server (stdio by default, HTTP via `serve-http`) |
 | `tick-admin` | CLI helper — session refresh, diagnostics |
 
+Quick operator capability summary:
+
+```bash
+tick-admin guide
+```
+
 ## Configuration
 
 ### 1. Environment variables
@@ -281,6 +287,12 @@ Notes:
 - `/session_refresh` uses `TICKTICK_USERNAME` + `TICKTICK_PASSWORD` from the admin env file.
 - If TickTick requires MFA code entry or an email-link approval, Telegram will refuse and tell you to use `tick-admin session refresh` over SSH.
 - `/restart` exits the live HTTP process; Docker restarts it automatically because the service runs with `restart: unless-stopped`.
+
+The same capability summary is available through:
+
+- CLI: `tick-admin guide`
+- HTTP: `GET /admin/help`
+- Telegram: `/help`
 
 ### Real-world admin validation checklist
 

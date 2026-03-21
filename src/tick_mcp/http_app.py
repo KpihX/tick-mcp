@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from . import daemon
-from .admin.service import status_summary_text
+from .admin.service import admin_help_text, status_summary_text
 from .config import (
     APP_VERSION,
     ENV_API_TOKEN,
@@ -88,6 +88,20 @@ async def admin_status(_request) -> JSONResponse:
     return JSONResponse(payload)
 
 
+async def admin_help(_request) -> JSONResponse:
+    payload = _base_payload()
+    payload["help"] = {
+        "text": admin_help_text(),
+        "routes": {
+            "health": "/health",
+            "admin_status": "/admin/status",
+            "admin_help": "/admin/help",
+            "mcp": HTTP_MCP_PATH,
+        },
+    }
+    return JSONResponse(payload)
+
+
 def _restart_process() -> None:
     time.sleep(1.0)
     os._exit(0)
@@ -97,3 +111,4 @@ app = mcp.streamable_http_app()
 app.add_event_handler("startup", lambda: start_telegram_admin(_restart_process))
 app.router.routes.insert(0, Route("/health", health))
 app.router.routes.insert(1, Route("/admin/status", admin_status))
+app.router.routes.insert(2, Route("/admin/help", admin_help))

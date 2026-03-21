@@ -11,6 +11,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **Operator README improved** — takeover flow, transport map, and real-world admin validation steps are now documented explicitly.
 - **TODO realigned** — stale rollout items were replaced by follow-up work that still matters after the first successful homelab deployment.
+- **Admin help unified** — one shared capability summary now feeds CLI (`tick-admin guide`), HTTP (`/admin/help`), and Telegram (`/help`).
 
 ## [0.2.0] — 2026-03-20
 

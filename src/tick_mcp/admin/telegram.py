@@ -24,6 +24,7 @@ from .service import (
     set_api_token,
     set_session_token,
     status_summary_text,
+    admin_help_text,
     urls_summary,
 )
 from ..config import TELEGRAM_CHAT_IDS, TELEGRAM_TICK_HOMELAB_TOKEN
@@ -86,7 +87,7 @@ class TelegramAdminBot:
 
     def _dispatch(self, command: str, args: list[str]) -> str:
         if command in {"/start", "/help"}:
-            return self._help_text()
+            return admin_help_text()
         if command == "/status":
             return status_summary_text()
         if command == "/health":
@@ -131,22 +132,6 @@ class TelegramAdminBot:
                 "text": text[:4000],
             },
         ).raise_for_status()
-
-    @staticmethod
-    def _help_text() -> str:
-        return "\n".join(
-            [
-                "tick-mcp Telegram admin",
-                "/status",
-                "/health",
-                "/urls",
-                "/logs [lines]",
-                "/api_token_set <token> [expires_at_iso]",
-                "/session_set <token> [ttl_days]",
-                "/session_refresh",
-                "/restart",
-            ]
-        )
 
 
 def start_telegram_admin(restart_callback: Callable[[], None]) -> None:
