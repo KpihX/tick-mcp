@@ -7,10 +7,10 @@ or updates a single line without touching the rest of the file.
 
 Usage examples:
     tick-admin status
-    tick-admin token set eyJhbGciOiJIUzI1NiJ9...
+    tick-admin api set eyJhbGciOiJIUzI1NiJ9...
     tick-admin session set <cookie-value-from-browser>
-    tick-admin session refresh          # interactive: prompts username + password
-    tick-admin session refresh --username me@email.com
+    tick-admin session refresh
+    tick-admin user set me@email.com
 """
 
 import sys
@@ -19,22 +19,24 @@ import logging
 import httpx
 import typer
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 from typing import Annotated, Optional
-from dotenv import set_key, dotenv_values
 from rich.console import Console
-from rich.table import Table
-from rich import box
 from .service import (
     API_EXPIRES_AT_KEY,
     APPROX_SESSION_TTL,
     SESSION_EXPIRES_AT_KEY,
     SESSION_OBTAINED_AT_KEY,
     admin_help_text,
-    get_status_payload,
     resolve_refresh_credentials,
+    set_password as service_set_password,
+    set_username as service_set_username,
     set_api_token as service_set_api_token,
     set_session_token as service_set_session_token,
+    status_summary_text,
+    unset_api_token as service_unset_api_token,
+    unset_password as service_unset_password,
+    unset_session_token as service_unset_session_token,
+    unset_username as service_unset_username,
 )
 from ..config import (
     ADMIN_ENV_PATH,
@@ -100,15 +102,19 @@ def _log_response(label: str, r: httpx.Response):
 # ─── Typer + Rich setup ───────────────────────────────────────────────────────
 app = typer.Typer(
     name="tick-admin",
-    help="Admin CLI — manage TickTick MCP credentials (API token, V2 session token).",
+    help="Admin CLI — manage TickTick admin credentials and actions.",
     no_args_is_help=True,
     rich_markup_mode="rich",
     pretty_exceptions_show_locals=False,
 )
-token_app = typer.Typer(help=f"Manage the V1 API token ({ENV_API_TOKEN}).", no_args_is_help=True)
+api_app = typer.Typer(help=f"Manage the V1 API token ({ENV_API_TOKEN}).", no_args_is_help=True)
 session_app = typer.Typer(help=f"Manage the V2 session token ({ENV_SESSION_TOKEN}).", no_args_is_help=True)
-app.add_typer(token_app, name="token")
+user_app = typer.Typer(help=f"Manage the TickTick username ({ENV_USERNAME}).", no_args_is_help=True)
+pass_app = typer.Typer(help=f"Manage the TickTick password ({ENV_PASSWORD}).", no_args_is_help=True)
+app.add_typer(api_app, name="api")
 app.add_typer(session_app, name="session")
+app.add_typer(user_app, name="user")
+app.add_typer(pass_app, name="pass")
 
 console = Console()
 err = Console(stderr=True)
@@ -123,29 +129,6 @@ def _mask(value: str | None, *, show: int = 6) -> str:
     if len(value) <= show * 2:
         return "[bold yellow]" + "*" * len(value) + "[/bold yellow]"
     return f"[bold yellow]{value[:show]}{'…' + value[-show:]}[/bold yellow]"
-
-
-def _env_value(key: str) -> str | None:
-    """Read a variable from .env on disk (not the process environment)."""
-    return dotenv_values(_DOTENV_PATH).get(key)
-
-
-def _write_env(key: str, value: str) -> None:
-    """Write or update a key in .env, creating the file if needed."""
-    _DOTENV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _DOTENV_PATH.touch(exist_ok=True)
-    success, _, _ = set_key(str(_DOTENV_PATH), key, value, quote_mode="never")
-    if not success:
-        err.print(f"[red]Failed to write {key} to {_DOTENV_PATH}[/red]")
-        raise typer.Exit(1)
-
-
-def _write_optional_env(key: str, value: str | None) -> None:
-    """Write an env key only when a value is explicitly provided."""
-    if value is None:
-        return
-    _write_env(key, value)
-
 
 def _now_utc() -> datetime:
     """Return the current UTC timestamp as a timezone-aware datetime."""
@@ -474,92 +457,34 @@ def _handle_code_flow(username: str, password: str, auth_id: str, signon_data: d
 
 @app.command()
 def status():
-    """Show current credential status (.env on disk + runtime fallback)."""
-
-    service_status = get_status_payload()
-    tbl = Table(
-        title="Tick auth status",
-        box=box.ROUNDED,
-        show_lines=True,
-        highlight=True,
-    )
-    tbl.add_column("Variable", style="bold cyan", no_wrap=True)
-    tbl.add_column("Status")
-    tbl.add_column("Value (masked)")
-    tbl.add_column("Timing")
-    tbl.add_column("Source")
-
-    def _row(
-        key: str,
-        present: bool,
-        masked: str,
-        source: str,
-        *,
-        timing: str = "[dim]n/a[/dim]",
-    ):
-        status_str = "[green]✓ set[/green]" if present else "[red]✗ missing[/red]"
-        tbl.add_row(
-            key,
-            status_str,
-            masked,
-            timing if present else "[dim]n/a[/dim]",
-            source,
-        )
-
-    _row(
-        ENV_API_TOKEN,
-        service_status.api_token_present,
-        service_status.api_token_masked,
-        service_status.api_source,
-        timing=service_status.api_timing,
-    )
-    _row(
-        ENV_SESSION_TOKEN,
-        service_status.session_token_present,
-        service_status.session_token_masked,
-        service_status.session_source,
-        timing=service_status.session_timing,
-    )
-    _row(
-        ENV_USERNAME,
-        service_status.username_present,
-        service_status.username_masked,
-        service_status.username_source,
-    )
-    _row(
-        ENV_PASSWORD,
-        service_status.password_present,
-        service_status.password_masked,
-        service_status.password_source,
-    )
-
-    console.print()
-    console.print(f"[dim]Local .env path:[/dim] {service_status.env_path}")
-    console.print(tbl)
-    console.print()
-
-    if not _DOTENV_PATH.exists():
-        console.print(f"[yellow]No .env file found at {_DOTENV_PATH}[/yellow]")
-        if service_status.api_token_present or service_status.session_token_present:
-            console.print("[dim]Using runtime environment fallback from the current process.[/dim]")
-        else:
-            console.print("[dim]Run any 'set' or 'refresh' command to create it.[/dim]")
+    """Show the shared admin status summary."""
+    console.print(status_summary_text())
 
 
-@app.command("guide")
-def guide():
+@app.command("help")
+def help_command():
     """Show the shared admin capability summary for CLI, HTTP, and Telegram."""
     console.print(admin_help_text())
 
 
-# ─── token ────────────────────────────────────────────────────────────────────
+@app.command("logs")
+def logs(
+    lines: Annotated[Optional[int], typer.Argument(help="Number of lines to display.")] = 40,
+):
+    """Show the shared admin log output."""
+    from .service import get_logs_text
 
-@token_app.command("set")
-def token_set(
+    console.print(get_logs_text(lines or 40))
+
+
+# ─── api ──────────────────────────────────────────────────────────────────────
+
+@api_app.command("set")
+def api_set(
     value: Annotated[Optional[str], typer.Argument(help="The API token value. Prompted if omitted.")] = None,
     expires_at: Annotated[
         Optional[str],
-        typer.Option("--expires-at", help="Optional ISO-8601 expiration timestamp for the API token."),
+        typer.Option("--expires-at", "-e", help="Optional ISO-8601 expiration timestamp for the API token."),
     ] = None,
 ):
     """Set the V1 API token in .env (official API)."""
@@ -571,6 +496,13 @@ def token_set(
         console.print(f"[dim]Expiration metadata saved: {result['timing']}[/dim]")
 
 
+@api_app.command("unset")
+def api_unset():
+    """Clear the V1 API token from the persistent admin env."""
+    result = service_unset_api_token()
+    console.print(f"[green]✓[/green] {result['key']} cleared in [dim]{result['env_path']}[/dim]")
+
+
 # ─── session ──────────────────────────────────────────────────────────────────
 
 @session_app.command("set")
@@ -578,11 +510,11 @@ def session_set(
     value: Annotated[Optional[str], typer.Argument(help="The session cookie value. Prompted if omitted.")] = None,
     ttl_days: Annotated[
         Optional[int],
-        typer.Option("--ttl-days", min=1, help="Optional session validity window in days for status reporting."),
+        typer.Option("--ttl-days", "-t", min=1, help="Optional session validity window in days for status reporting."),
     ] = None,
     expires_at: Annotated[
         Optional[str],
-        typer.Option("--expires-at", help="Optional ISO-8601 expiration timestamp for the session token."),
+        typer.Option("--expires-at", "-e", help="Optional ISO-8601 expiration timestamp for the session token."),
     ] = None,
 ):
     """
@@ -650,6 +582,49 @@ def session_refresh(
     console.print(f"[dim]Approximate expiration: {_format_timestamp(expires_at)} ({_format_remaining(expires_at, approximate=True)} left)[/dim]")
     console.print()
     console.print("[dim]The MCP server will pick it up automatically on next restart (or hot-reload if supported).[/dim]")
+
+
+@session_app.command("unset")
+def session_unset():
+    """Clear the V2 session token from the persistent admin env."""
+    result = service_unset_session_token()
+    console.print(f"[green]✓[/green] {result['key']} cleared in [dim]{result['env_path']}[/dim]")
+
+
+@user_app.command("set")
+def user_set(
+    value: Annotated[Optional[str], typer.Argument(help="The TickTick account email. Prompted if omitted.")] = None,
+):
+    """Persist the TickTick username in the admin env."""
+    if not value:
+        value = typer.prompt(ENV_USERNAME)
+    result = service_set_username(value.strip())
+    console.print(f"[green]✓[/green] {result['key']} updated in [dim]{result['env_path']}[/dim]")
+
+
+@user_app.command("unset")
+def user_unset():
+    """Clear the TickTick username from the persistent admin env."""
+    result = service_unset_username()
+    console.print(f"[green]✓[/green] {result['key']} cleared in [dim]{result['env_path']}[/dim]")
+
+
+@pass_app.command("set")
+def pass_set(
+    value: Annotated[Optional[str], typer.Argument(help="The TickTick account password. Prompted if omitted.")] = None,
+):
+    """Persist the TickTick password in the admin env."""
+    if not value:
+        value = typer.prompt(ENV_PASSWORD, hide_input=True)
+    result = service_set_password(value)
+    console.print(f"[green]✓[/green] {result['key']} updated in [dim]{result['env_path']}[/dim]")
+
+
+@pass_app.command("unset")
+def pass_unset():
+    """Clear the TickTick password from the persistent admin env."""
+    result = service_unset_password()
+    console.print(f"[green]✓[/green] {result['key']} cleared in [dim]{result['env_path']}[/dim]")
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────

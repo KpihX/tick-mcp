@@ -17,7 +17,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Automatic session-token write-back removed** — runtime/login-shell discovery no longer repopulates the local `.env`; only explicit admin write actions persist a new token.
 - **Blank `.env` auth no longer poisons fallback** — empty TickTick auth values are now cleared before the login-shell probe, so editable/local stdio installs can still resolve real shell-exported secrets.
 - **TODO realigned** — stale rollout items were replaced by follow-up work that still matters after the first successful homelab deployment.
-- **Admin help unified** — one shared capability summary now feeds CLI (`tick-admin guide`), HTTP (`/admin/help`), and Telegram (`/help`).
+- **Admin interface unified** — one shared admin contract now drives `help`, `status`, and `logs` across CLI, HTTP, and Telegram, with the same `api/session/user/pass` action model on every surface.
+- **CLI help renamed** — `tick-admin help` replaces the old standalone `guide` entry so the CLI matches HTTP `/admin/help` and Telegram `/help`.
 - **Telegram poller diagnostics hardened** — `/admin/status` now exposes live Telegram admin runtime state, and the poll loop records the last poll, last update, last command, and last error.
 - **Telegram poller bootstrap fixed** — the HTTP entrypoint now starts the Telegram admin thread explicitly before serving, instead of depending only on the app startup hook.
 - **Telegram admin verified live** — `/start`, `/help`, `/status`, and `/health` now reply correctly from the deployed bot, and `/admin/status` confirms a live poller thread in production.

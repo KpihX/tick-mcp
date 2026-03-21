@@ -259,6 +259,10 @@ def _write_optional_env(key: str, value: str | None) -> None:
     _write_env(key, value)
 
 
+def _unset_env(key: str) -> None:
+    _write_env(key, "")
+
+
 def _log_request(label: str, method: str, url: str, payload: dict[str, Any], headers: dict[str, str]) -> None:
     _log.debug("=" * 80)
     _log.debug("REQUEST  [%s]  %s %s", label, method.upper(), url)
@@ -344,6 +348,17 @@ def set_api_token(value: str, *, expires_at: str | None = None) -> dict[str, str
     }
 
 
+def unset_api_token() -> dict[str, str]:
+    _unset_env(ENV_API_TOKEN)
+    _unset_env(API_EXPIRES_AT_KEY)
+    return {
+        "key": ENV_API_TOKEN,
+        "masked": _mask(None),
+        "env_path": str(ADMIN_ENV_PATH),
+        "timing": "cleared",
+    }
+
+
 def set_session_token(
     value: str,
     *,
@@ -369,6 +384,58 @@ def set_session_token(
             obtained_at=now,
             approximate=True,
         ),
+    }
+
+
+def unset_session_token() -> dict[str, str]:
+    _unset_env(ENV_SESSION_TOKEN)
+    _unset_env(SESSION_OBTAINED_AT_KEY)
+    _unset_env(SESSION_EXPIRES_AT_KEY)
+    return {
+        "key": ENV_SESSION_TOKEN,
+        "masked": _mask(None),
+        "env_path": str(ADMIN_ENV_PATH),
+        "timing": "cleared",
+    }
+
+
+def set_username(value: str) -> dict[str, str]:
+    _write_env(ENV_USERNAME, value.strip())
+    return {
+        "key": ENV_USERNAME,
+        "masked": _mask(value.strip()),
+        "env_path": str(ADMIN_ENV_PATH),
+        "timing": "n/a",
+    }
+
+
+def unset_username() -> dict[str, str]:
+    _unset_env(ENV_USERNAME)
+    return {
+        "key": ENV_USERNAME,
+        "masked": _mask(None),
+        "env_path": str(ADMIN_ENV_PATH),
+        "timing": "cleared",
+    }
+
+
+def set_password(value: str) -> dict[str, str]:
+    _write_env(ENV_PASSWORD, value)
+    return {
+        "key": ENV_PASSWORD,
+        "masked": _mask(value),
+        "env_path": str(ADMIN_ENV_PATH),
+        "timing": "n/a",
+    }
+
+
+def unset_password() -> dict[str, str]:
+    _unset_env(ENV_PASSWORD)
+    return {
+        "key": ENV_PASSWORD,
+        "masked": _mask(None),
+        "env_path": str(ADMIN_ENV_PATH),
+        "timing": "cleared",
     }
 
 
@@ -424,6 +491,7 @@ def urls_summary() -> str:
             f"- MCP: {HTTP_PUBLIC_BASE_URL}{HTTP_MCP_PATH}",
             f"- admin status: {HTTP_PUBLIC_BASE_URL}/admin/status",
             f"- admin help: {HTTP_PUBLIC_BASE_URL}/admin/help",
+            f"- admin logs: {HTTP_PUBLIC_BASE_URL}/admin/logs?lines=40",
             f"- health: {HTTP_PUBLIC_BASE_URL}/health",
         ]
     )
@@ -435,14 +503,30 @@ def admin_help_text() -> str:
             "tick-admin capabilities",
             "- CLI:",
             "  - tick-admin status",
-            "  - tick-admin guide",
-            "  - tick-admin token set <token> [--expires-at ISO]",
+            "  - tick-admin help",
+            "  - tick-admin api set <token> [--expires-at ISO]",
+            "  - tick-admin api unset",
             "  - tick-admin session set <token> [--ttl-days N|--expires-at ISO]",
+            "  - tick-admin session unset",
             "  - tick-admin session refresh [--username <email>] [--password <value>]",
+            "  - tick-admin user set <email>",
+            "  - tick-admin user unset",
+            "  - tick-admin pass set <password>",
+            "  - tick-admin pass unset",
             "- HTTP:",
             "  - GET /health",
             "  - GET /admin/status",
             "  - GET /admin/help",
+            "  - GET /admin/logs?lines=40",
+            "  - POST /admin/api/set",
+            "  - POST /admin/api/unset",
+            "  - POST /admin/session/set",
+            "  - POST /admin/session/unset",
+            "  - POST /admin/session/refresh",
+            "  - POST /admin/user/set",
+            "  - POST /admin/user/unset",
+            "  - POST /admin/pass/set",
+            "  - POST /admin/pass/unset",
             "- Telegram:",
             "  - /start",
             "  - /help",
@@ -450,9 +534,15 @@ def admin_help_text() -> str:
             "  - /health",
             "  - /urls",
             "  - /logs [lines]",
-            "  - /api_token_set <token> [expires_at_iso]",
+            "  - /api_set <token> [expires_at_iso]",
+            "  - /api_unset",
             "  - /session_set <token> [ttl_days]",
+            "  - /session_unset",
             "  - /session_refresh",
+            "  - /user_set <email>",
+            "  - /user_unset",
+            "  - /pass_set <password>",
+            "  - /pass_unset",
             "  - /restart",
         ]
     )
@@ -463,7 +553,7 @@ def status_summary_text() -> str:
     return "\n".join(
         [
             "tick-admin status",
-            f"- env file: {status.env_path}",
+            f"- local env path: {status.env_path}",
             f"- {ENV_API_TOKEN}: {'set' if status.api_token_present else 'missing'} ({status.api_token_masked})",
             f"  source: {status.api_source}",
             f"  timing: {status.api_timing}",

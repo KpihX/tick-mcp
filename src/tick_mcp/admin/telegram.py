@@ -20,10 +20,16 @@ from .service import (
     get_logs_text,
     health_summary,
     refresh_session_token_noninteractive,
+    set_password,
+    set_username,
     set_api_token,
     set_session_token,
     status_summary_text,
     admin_help_text,
+    unset_api_token,
+    unset_password,
+    unset_session_token,
+    unset_username,
     urls_summary,
 )
 from ..config import TELEGRAM_CHAT_IDS, TELEGRAM_TICK_HOMELAB_TOKEN
@@ -117,26 +123,48 @@ class TelegramAdminBot:
         if command == "/logs":
             lines = int(args[0]) if args else 40
             return get_logs_text(lines)
-        if command == "/api_token_set":
+        if command in {"/api_set", "/api_token_set"}:
             if not args:
-                return "Usage: /api_token_set <token> [expires_at_iso]"
+                return "Usage: /api_set <token> [expires_at_iso]"
             result = set_api_token(args[0], expires_at=args[1] if len(args) > 1 else None)
             return f"{result['key']} updated\nmask: {result['masked']}\n{result['timing']}"
+        if command == "/api_unset":
+            result = unset_api_token()
+            return f"{result['key']} cleared\nmask: {result['masked']}\n{result['timing']}"
         if command == "/session_set":
             if not args:
                 return "Usage: /session_set <token> [ttl_days]"
             ttl_days = int(args[1]) if len(args) > 1 else 30
             result = set_session_token(args[0], ttl_days=ttl_days)
             return f"{result['key']} updated\nmask: {result['masked']}\n{result['timing']}"
+        if command == "/session_unset":
+            result = unset_session_token()
+            return f"{result['key']} cleared\nmask: {result['masked']}\n{result['timing']}"
         if command == "/session_refresh":
             username, password = configured_refresh_credentials()
             if not username or not password:
-                return "Missing TICKTICK_USERNAME or TICKTICK_PASSWORD in admin env."
+                return "Missing TICKTICK_USERNAME or TICKTICK_PASSWORD in admin sources."
             try:
                 result = refresh_session_token_noninteractive(username, password)
             except AdminRefreshInteractionRequired as exc:
                 return str(exc)
             return f"{result['key']} refreshed\nmask: {result['masked']}\n{result['timing']}"
+        if command == "/user_set":
+            if not args:
+                return "Usage: /user_set <email>"
+            result = set_username(args[0])
+            return f"{result['key']} updated\nmask: {result['masked']}\n{result['timing']}"
+        if command == "/user_unset":
+            result = unset_username()
+            return f"{result['key']} cleared\nmask: {result['masked']}\n{result['timing']}"
+        if command == "/pass_set":
+            if not args:
+                return "Usage: /pass_set <password>"
+            result = set_password(args[0])
+            return f"{result['key']} updated\nmask: {result['masked']}\n{result['timing']}"
+        if command == "/pass_unset":
+            result = unset_password()
+            return f"{result['key']} cleared\nmask: {result['masked']}\n{result['timing']}"
         if command == "/restart":
             if _restart_callback is None:
                 return "Restart callback is not configured."
