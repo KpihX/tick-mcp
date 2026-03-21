@@ -7,7 +7,6 @@ actions can affect the live server directly.
 from __future__ import annotations
 
 import logging
-import os
 import threading
 import time
 from collections.abc import Callable
@@ -33,6 +32,17 @@ from ..config import TELEGRAM_CHAT_IDS, TELEGRAM_TICK_HOMELAB_TOKEN
 _log = logging.getLogger("tick_mcp.telegram_admin")
 _poller_started = False
 _restart_callback: Callable[[], None] | None = None
+_poller_thread: threading.Thread | None = None
+_poller_state: dict[str, object | None] = {
+    "started_at": None,
+    "last_poll_at": None,
+    "last_success_at": None,
+    "last_update_id": None,
+    "last_chat_id": None,
+    "last_command": None,
+    "last_reply_preview": None,
+    "last_error": None,
+}
 
 
 class TelegramAdminBot:
@@ -43,24 +53,29 @@ class TelegramAdminBot:
         self.offset = 0
 
     def run_forever(self) -> None:
+        _poller_state["started_at"] = int(time.time())
         _log.info("Telegram admin poller started for %d allowed chats.", len(self.allowed_chat_ids))
         with httpx.Client(timeout=35.0) as client:
             while True:
                 try:
+                    _poller_state["last_poll_at"] = int(time.time())
                     response = client.get(
                         f"{self.base_url}/getUpdates",
                         params={
                             "timeout": 25,
                             "offset": self.offset,
-                            "allowed_updates": '["message"]',
                         },
                     )
                     response.raise_for_status()
                     payload = response.json()
+                    _poller_state["last_success_at"] = int(time.time())
+                    _poller_state["last_error"] = None
                     for update in payload.get("result", []):
                         self.offset = max(self.offset, int(update["update_id"]) + 1)
+                        _poller_state["last_update_id"] = int(update["update_id"])
                         self._handle_update(client, update)
                 except Exception as exc:  # noqa: BLE001
+                    _poller_state["last_error"] = str(exc)
                     _log.exception("Telegram poll loop error: %s", exc)
                     time.sleep(5)
 
@@ -69,6 +84,7 @@ class TelegramAdminBot:
         chat = message.get("chat") or {}
         chat_id = str(chat.get("id", ""))
         text = (message.get("text") or "").strip()
+        _poller_state["last_chat_id"] = chat_id or None
         if not text.startswith("/"):
             return
         if self.allowed_chat_ids and chat_id not in self.allowed_chat_ids:
@@ -78,12 +94,16 @@ class TelegramAdminBot:
 
         command, *args = text.split()
         command = command.split("@", 1)[0].lower()
+        _poller_state["last_command"] = command
+        _log.info("Telegram command received: chat=%s command=%s args=%s", chat_id, command, args)
         try:
             reply = self._dispatch(command, args)
         except Exception as exc:  # noqa: BLE001
             _log.exception("Telegram command failed: %s", exc)
             reply = f"Command failed: {exc}"
+        _poller_state["last_reply_preview"] = reply[:120]
         self._send_message(client, chat_id, reply)
+        _log.info("Telegram reply sent: chat=%s preview=%r", chat_id, reply[:120])
 
     def _dispatch(self, command: str, args: list[str]) -> str:
         if command in {"/start", "/help"}:
@@ -135,7 +155,7 @@ class TelegramAdminBot:
 
 
 def start_telegram_admin(restart_callback: Callable[[], None]) -> None:
-    global _poller_started, _restart_callback
+    global _poller_started, _restart_callback, _poller_thread
     if _poller_started:
         return
     if not TELEGRAM_TICK_HOMELAB_TOKEN:
@@ -151,8 +171,20 @@ def start_telegram_admin(restart_callback: Callable[[], None]) -> None:
     )
     thread = threading.Thread(target=bot.run_forever, daemon=True, name="tick-mcp-telegram-admin")
     thread.start()
+    _poller_thread = thread
     _poller_started = True
 
 
 def telegram_admin_enabled() -> bool:
     return bool(TELEGRAM_TICK_HOMELAB_TOKEN and TELEGRAM_CHAT_IDS)
+
+
+def telegram_admin_runtime_status() -> dict[str, object | None]:
+    return {
+        "enabled": telegram_admin_enabled(),
+        "started": _poller_started,
+        "thread_alive": bool(_poller_thread and _poller_thread.is_alive()),
+        "allowed_chat_count": len(TELEGRAM_CHAT_IDS),
+        "allowed_chat_ids": TELEGRAM_CHAT_IDS,
+        **_poller_state,
+    }

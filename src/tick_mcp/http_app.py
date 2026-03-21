@@ -30,7 +30,11 @@ from .config import (
     has_v2_auth_in_environment,
 )
 from .server import mcp
-from .admin.telegram import start_telegram_admin, telegram_admin_enabled
+from .admin.telegram import (
+    start_telegram_admin,
+    telegram_admin_enabled,
+    telegram_admin_runtime_status,
+)
 
 
 def _base_payload() -> dict[str, object]:
@@ -72,11 +76,12 @@ async def admin_status(_request) -> JSONResponse:
             ],
         },
         "telegram_admin": {
-            "planned": False,
+            "supported": True,
             "token_env": ENV_TELEGRAM_TICK_HOMELAB_TOKEN,
             "allowed_chat_ids_env": ENV_TELEGRAM_CHAT_IDS,
             "configured": bool(os.environ.get(ENV_TELEGRAM_TICK_HOMELAB_TOKEN)),
             "enabled": telegram_admin_enabled(),
+            "runtime": telegram_admin_runtime_status(),
         },
         "status_summary": status_summary_text(),
     }
