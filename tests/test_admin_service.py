@@ -52,3 +52,24 @@ def test_status_payload_reports_runtime_fallback(monkeypatch, tmp_path: Path) ->
     assert payload.api_token_present is True
     assert payload.session_token_present is True
     assert payload.env_source == "runtime environment fallback"
+
+
+def test_status_payload_reports_login_shell_fallback(monkeypatch, tmp_path: Path) -> None:
+    env_path = tmp_path / "tick-admin.env"
+    monkeypatch.setattr(admin_service, "ADMIN_ENV_PATH", env_path)
+    monkeypatch.delenv("TICKTICK_API_TOKEN", raising=False)
+    monkeypatch.delenv("TICKTICK_SESSION_TOKEN", raising=False)
+    monkeypatch.setattr(
+        admin_service,
+        "_shell_read_env",
+        lambda key: {
+            "TICKTICK_API_TOKEN": "api-shell-123456",
+            "TICKTICK_SESSION_TOKEN": "session-shell-123456",
+        }.get(key),
+    )
+
+    payload = admin_service.get_status_payload()
+
+    assert payload.api_token_present is True
+    assert payload.session_token_present is True
+    assert payload.env_source == "login shell fallback"
