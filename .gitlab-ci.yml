@@ -7,18 +7,29 @@ variables:
 
 validate_project:
   stage: validate
+  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
   script:
     - |
-      docker run --rm \
-        -v "$CI_PROJECT_DIR:/work" \
-        -w /work \
-        ghcr.io/astral-sh/uv:python3.12-bookworm-slim \
-        sh -lc '
-          uv sync --group dev &&
-          uv run python -m py_compile $(find src -name '"'"'*.py'"'"' -print) &&
-          uv run --group dev python -m pytest tests -q &&
-          uv run python -c "import anyio, json; from tick_mcp.http_app import health; response = anyio.run(health, None); assert response.status_code == 200; payload = json.loads(response.body); assert payload[\"product\"] == \"tick-mcp\"; assert payload[\"transport\"] == \"streamable-http\"; print(\"tick-mcp HTTP smoke test OK\")"
-        '
+      if command -v uv >/dev/null 2>&1; then
+        uv sync --group dev
+        uv run python -m py_compile $(find src -name '*.py' -print)
+        uv run --group dev python -m pytest tests -q
+        uv run python -c "import anyio, json; from tick_mcp.http_app import health; response = anyio.run(health, None); assert response.status_code == 200; payload = json.loads(response.body); assert payload['product'] == 'tick-mcp'; assert payload['transport'] == 'streamable-http'; print('tick-mcp HTTP smoke test OK')"
+      elif command -v docker >/dev/null 2>&1; then
+        docker run --rm \
+          -v "$CI_PROJECT_DIR:/work" \
+          -w /work \
+          ghcr.io/astral-sh/uv:python3.12-bookworm-slim \
+          sh -lc '
+            uv sync --group dev &&
+            uv run python -m py_compile $(find src -name '"'"'*.py'"'"' -print) &&
+            uv run --group dev python -m pytest tests -q &&
+            uv run python -c "import anyio, json; from tick_mcp.http_app import health; response = anyio.run(health, None); assert response.status_code == 200; payload = json.loads(response.body); assert payload[\"product\"] == \"tick-mcp\"; assert payload[\"transport\"] == \"streamable-http\"; print(\"tick-mcp HTTP smoke test OK\")"
+          '
+      else
+        echo "Neither uv nor docker is available on this runner."
+        exit 1
+      fi
 
 deploy_homelab:
   stage: deploy
