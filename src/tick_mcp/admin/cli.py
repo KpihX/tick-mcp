@@ -21,12 +21,15 @@ import typer
 from datetime import datetime, timezone, timedelta
 from typing import Annotated, Optional
 from rich.console import Console
+from rich.table import Table
+from rich import box
 from .service import (
     API_EXPIRES_AT_KEY,
     APPROX_SESSION_TTL,
     SESSION_EXPIRES_AT_KEY,
     SESSION_OBTAINED_AT_KEY,
     admin_help_text,
+    get_status_payload,
     resolve_refresh_credentials,
     set_password as service_set_password,
     set_username as service_set_username,
@@ -457,8 +460,56 @@ def _handle_code_flow(username: str, password: str, auth_id: str, signon_data: d
 
 @app.command()
 def status():
-    """Show the shared admin status summary."""
-    console.print(status_summary_text())
+    """Show the current admin status in table form."""
+    service_status = get_status_payload()
+    table = Table(title="tick-admin status", box=box.ROUNDED, show_lines=True, highlight=True)
+    table.add_column("Variable", style="bold cyan", no_wrap=True)
+    table.add_column("Status")
+    table.add_column("Value (masked)")
+    table.add_column("Timing")
+    table.add_column("Source")
+
+    def add_row(key: str, present: bool, masked: str, timing: str, source: str) -> None:
+        table.add_row(
+            key,
+            "[green]✓ set[/green]" if present else "[red]✗ missing[/red]",
+            masked,
+            timing if present else "[dim]n/a[/dim]",
+            source,
+        )
+
+    add_row(
+        ENV_API_TOKEN,
+        service_status.api_token_present,
+        service_status.api_token_masked,
+        service_status.api_timing,
+        service_status.api_source,
+    )
+    add_row(
+        ENV_SESSION_TOKEN,
+        service_status.session_token_present,
+        service_status.session_token_masked,
+        service_status.session_timing,
+        service_status.session_source,
+    )
+    add_row(
+        ENV_USERNAME,
+        service_status.username_present,
+        service_status.username_masked,
+        "n/a",
+        service_status.username_source,
+    )
+    add_row(
+        ENV_PASSWORD,
+        service_status.password_present,
+        service_status.password_masked,
+        "n/a",
+        service_status.password_source,
+    )
+
+    console.print()
+    console.print(f"[dim]Local .env path:[/dim] {service_status.env_path}")
+    console.print(table)
 
 
 @app.command("help")
