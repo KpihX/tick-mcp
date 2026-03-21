@@ -1,3 +1,5 @@
+name: tick-mcp
+
 services:
   tick-mcp:
     build:

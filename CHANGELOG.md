@@ -19,6 +19,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Telegram help clarified** — `/start` is now listed explicitly alongside `/help` in the shared admin capability summary.
 - **Admin status clarified** — `/status` now reports whether tokens come from the persistent `/data/tick-admin.env` file or from the runtime environment fallback.
 - **HTTP auth probe clarified** — `/health` and `/admin/status` now expose explicit presence booleans for API token, session token, username, and password, so operators can distinguish “missing env” from “expired token”.
+- **Compose project isolation** — tick-mcp deploys now pin the Compose project name to `tick-mcp`, preventing other MCP stacks deployed from sibling `deploy/` directories from removing it as an orphan.
 
 ## [0.2.0] — 2026-03-20
 
