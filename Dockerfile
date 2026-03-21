@@ -15,9 +15,6 @@ RUN python -m pip install --no-cache-dir .
 
 COPY . /app/
 
-RUN useradd -m tickmcp && chown -R tickmcp:tickmcp /app
-USER tickmcp
-
 EXPOSE 8091
 
 CMD ["tick-mcp", "serve-http"]
