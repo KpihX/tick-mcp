@@ -21,6 +21,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **CLI help renamed** — `tick-admin help` replaces the old standalone `guide` entry so the CLI matches HTTP `/admin/help` and Telegram `/help`.
 - **CLI status table restored** — `tick-admin status` keeps the Rich table layout while showing masked values, timing metadata, and the real source for each admin variable.
 - **Admin command naming aligned** — user-facing remediation text now references `tick-admin api set ...` instead of the removed `token set` command.
+- **Deploy script repaired** — the homelab deploy job now writes each `.env` line and runs `docker compose` as separate YAML commands, so GitLab actually rebuilds and recreates the container.
 - **Telegram poller diagnostics hardened** — `/admin/status` now exposes live Telegram admin runtime state, and the poll loop records the last poll, last update, last command, and last error.
 - **Telegram poller bootstrap fixed** — the HTTP entrypoint now starts the Telegram admin thread explicitly before serving, instead of depending only on the app startup hook.
 - **Telegram admin verified live** — `/start`, `/help`, `/status`, and `/health` now reply correctly from the deployed bot, and `/admin/status` confirms a live poller thread in production.

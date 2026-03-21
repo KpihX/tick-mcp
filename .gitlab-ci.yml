@@ -52,12 +52,12 @@ deploy_homelab:
     - echo "TELEGRAM_CHAT_IDS=$TELEGRAM_CHAT_IDS" >> .env
     - echo "TICK_MCP_HTTP_HOST=0.0.0.0" >> .env
     - echo "TICK_MCP_HTTP_PORT=8091" >> .env
-      - echo "TICK_MCP_HTTP_MCP_PATH=/mcp" >> .env
-      - echo "TICK_MCP_ADMIN_ENV_FILE=/data/tick-admin.env" >> .env
-      - echo "TICK_MCP_PUBLIC_BASE_URL=https://tick.kpihx-labs.com" >> .env
-      - echo "TICK_MCP_FALLBACK_BASE_URL=https://tick.homelab" >> .env
-      - docker compose -p tick-mcp config -q
-      - docker compose -p tick-mcp up -d --build --remove-orphans
+    - echo "TICK_MCP_HTTP_MCP_PATH=/mcp" >> .env
+    - echo "TICK_MCP_ADMIN_ENV_FILE=/data/tick-admin.env" >> .env
+    - echo "TICK_MCP_PUBLIC_BASE_URL=https://tick.kpihx-labs.com" >> .env
+    - echo "TICK_MCP_FALLBACK_BASE_URL=https://tick.homelab" >> .env
+    - docker compose -p tick-mcp config -q
+    - docker compose -p tick-mcp up -d --build --remove-orphans
     - |
       for attempt in $(seq 1 20); do
         status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}starting{{end}}' tick-mcp 2>/dev/null || true)"
