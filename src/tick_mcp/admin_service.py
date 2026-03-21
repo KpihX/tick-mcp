@@ -167,6 +167,23 @@ def _dotenv_values() -> dict[str, str]:
     return dotenv_values(ADMIN_ENV_PATH) if ADMIN_ENV_PATH.exists() else {}
 
 
+def _admin_env_view() -> dict[str, str]:
+    env = _dotenv_values()
+    for key in (
+        ENV_API_TOKEN,
+        ENV_SESSION_TOKEN,
+        ENV_USERNAME,
+        ENV_PASSWORD,
+        API_EXPIRES_AT_KEY,
+        SESSION_OBTAINED_AT_KEY,
+        SESSION_EXPIRES_AT_KEY,
+    ):
+        value = os.environ.get(key)
+        if value:
+            env[key] = value
+    return env
+
+
 def _write_env(key: str, value: str) -> None:
     ADMIN_ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
     ADMIN_ENV_PATH.touch(exist_ok=True)
@@ -221,7 +238,7 @@ def _http_post(label: str, url: str, payload: dict[str, Any]) -> httpx.Response:
 
 
 def get_status_payload() -> StatusPayload:
-    env = _dotenv_values()
+    env = _admin_env_view()
     api_expires_at = _parse_epoch(env.get(API_EXPIRES_AT_KEY))
     session_obtained_at = _parse_epoch(env.get(SESSION_OBTAINED_AT_KEY))
     session_expires_at = _parse_epoch(env.get(SESSION_EXPIRES_AT_KEY))
@@ -353,5 +370,5 @@ def status_summary_text() -> str:
 
 
 def configured_refresh_credentials() -> tuple[str | None, str | None]:
-    env = _dotenv_values()
+    env = _admin_env_view()
     return env.get(ENV_USERNAME), env.get(ENV_PASSWORD)
