@@ -7,23 +7,28 @@ variables:
 
 validate_project:
   stage: validate
-  image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
   script:
-    - uv sync --group dev
-    - uv run python -m py_compile $(find src -name '*.py' -print)
-    - uv run --group dev python -m pytest tests -q
     - |
-      uv run python - <<'PY'
-      import anyio
-      import json
-      from tick_mcp.http_app import health
-      response = anyio.run(health, None)
-      assert response.status_code == 200
-      payload = json.loads(response.body)
-      assert payload["product"] == "tick-mcp"
-      assert payload["transport"] == "streamable-http"
-      print("tick-mcp HTTP smoke test OK")
-      PY
+      docker run --rm \
+        -v "$PWD:/workspace" \
+        -w /workspace \
+        ghcr.io/astral-sh/uv:python3.12-bookworm-slim \
+        sh -lc '
+          uv sync --group dev &&
+          uv run python -m py_compile $(find src -name '"'"'*.py'"'"' -print) &&
+          uv run --group dev python -m pytest tests -q &&
+          uv run python - <<'"'"'"'"'PY'"'"'"'"'
+import anyio
+import json
+from tick_mcp.http_app import health
+response = anyio.run(health, None)
+assert response.status_code == 200
+payload = json.loads(response.body)
+assert payload["product"] == "tick-mcp"
+assert payload["transport"] == "streamable-http"
+print("tick-mcp HTTP smoke test OK")
+PY
+        '
 
 deploy_homelab:
   stage: deploy
