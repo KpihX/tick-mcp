@@ -17,6 +17,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Telegram admin verified live** — `/start`, `/help`, `/status`, and `/health` now reply correctly from the deployed bot, and `/admin/status` confirms a live poller thread in production.
 - **Admin log surface aligned** — Telegram admin now logs into the shared admin log stream, so `/logs` can reflect both CLI/admin actions and Telegram command handling.
 - **Telegram help clarified** — `/start` is now listed explicitly alongside `/help` in the shared admin capability summary.
+- **Admin status clarified** — `/status` now reports whether tokens come from the persistent `/data/tick-admin.env` file or from the runtime environment fallback.
 
 ## [0.2.0] — 2026-03-20
 

@@ -273,6 +273,7 @@ Persistent admin state inside Docker:
 Telegram commands currently supported:
 
 ```text
+/start
 /status
 /health
 /urls
@@ -287,6 +288,7 @@ Notes:
 - `/session_refresh` uses `TICKTICK_USERNAME` + `TICKTICK_PASSWORD` from the admin env file.
 - If TickTick requires MFA code entry or an email-link approval, Telegram will refuse and tell you to use `tick-admin session refresh` over SSH.
 - `/restart` exits the live HTTP process; Docker restarts it automatically because the service runs with `restart: unless-stopped`.
+- `/status` reports whether credentials come from `/data/tick-admin.env` or from the runtime environment fallback.
 
 The same capability summary is available through:
 

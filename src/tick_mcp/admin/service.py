@@ -84,6 +84,7 @@ class StatusPayload:
     api_timing: str
     session_timing: str
     env_path: str
+    env_source: str
 
 
 def _mask(value: str | None, *, show: int = 6) -> str:
@@ -240,6 +241,7 @@ def _http_post(label: str, url: str, payload: dict[str, Any]) -> httpx.Response:
 
 def get_status_payload() -> StatusPayload:
     env = _admin_env_view()
+    env_source = "persistent admin env" if ADMIN_ENV_PATH.exists() else "runtime environment fallback"
     api_expires_at = _parse_epoch(env.get(API_EXPIRES_AT_KEY))
     session_obtained_at = _parse_epoch(env.get(SESSION_OBTAINED_AT_KEY))
     session_expires_at = _parse_epoch(env.get(SESSION_EXPIRES_AT_KEY))
@@ -257,6 +259,7 @@ def get_status_payload() -> StatusPayload:
             approximate=True,
         ),
         env_path=str(ADMIN_ENV_PATH),
+        env_source=env_source,
     )
 
 
@@ -392,6 +395,7 @@ def status_summary_text() -> str:
         [
             "tick-admin status",
             f"- env file: {status.env_path}",
+            f"- source: {status.env_source}",
             f"- {ENV_API_TOKEN}: {'set' if status.api_token_present else 'missing'} ({status.api_token_masked})",
             f"  timing: {status.api_timing}",
             f"- {ENV_SESSION_TOKEN}: {'set' if status.session_token_present else 'missing'} ({status.session_token_masked})",
