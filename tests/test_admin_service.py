@@ -91,3 +91,13 @@ def test_status_payload_reports_credential_sources_individually(monkeypatch, tmp
     assert payload.password_present is True
     assert payload.username_source == "persistent admin env"
     assert payload.password_source == "runtime environment fallback"
+    assert payload.password_masked == "hidden"
+
+
+def test_set_password_never_returns_a_partial_mask(monkeypatch, tmp_path: Path) -> None:
+    env_path = tmp_path / "tick-admin.env"
+    monkeypatch.setattr(admin_service, "ADMIN_ENV_PATH", env_path)
+
+    result = admin_service.set_password("super-secret-password")
+
+    assert result["masked"] == "hidden"

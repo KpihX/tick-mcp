@@ -111,6 +111,12 @@ def _mask(value: str | None, *, show: int = 6) -> str:
     return f"{value[:show]}…{value[-show:]}"
 
 
+def _mask_password(value: str | None) -> str:
+    if not value:
+        return "not set"
+    return "hidden"
+
+
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -321,7 +327,7 @@ def get_status_payload() -> StatusPayload:
         api_token_masked=_mask(api_value),
         session_token_masked=_mask(session_value),
         username_masked=_mask(username_value),
-        password_masked=_mask(password_value),
+        password_masked=_mask_password(password_value),
         api_timing=_timing_summary(expires_at=api_expires_at),
         session_timing=_timing_summary(
             expires_at=session_expires_at,
@@ -423,7 +429,7 @@ def set_password(value: str) -> dict[str, str]:
     _write_env(ENV_PASSWORD, value)
     return {
         "key": ENV_PASSWORD,
-        "masked": _mask(value),
+        "masked": _mask_password(value),
         "env_path": str(ADMIN_ENV_PATH),
         "timing": "n/a",
     }
@@ -433,7 +439,7 @@ def unset_password() -> dict[str, str]:
     _unset_env(ENV_PASSWORD)
     return {
         "key": ENV_PASSWORD,
-        "masked": _mask(None),
+        "masked": _mask_password(None),
         "env_path": str(ADMIN_ENV_PATH),
         "timing": "cleared",
     }
