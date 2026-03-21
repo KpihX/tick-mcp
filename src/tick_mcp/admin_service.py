@@ -30,13 +30,14 @@ from .config import (
     HTTP_PORT,
     HTTP_PUBLIC_BASE_URL,
     SIGNON_PARAMS,
+    STATE_DIRECTORY,
     V2_LOGIN_HEADERS,
     V2_SIGNON_URL,
     WEB_ORIGIN,
 )
 
 
-_LOG_DIR = Path(__file__).resolve().parent.parent.parent / "logs"
+_LOG_DIR = (ADMIN_ENV_PATH.parent if str(ADMIN_ENV_PATH.parent) not in ("", ".") else STATE_DIRECTORY) / "logs"
 _LOG_FILE = _LOG_DIR / "ticktick_admin_debug.log"
 SESSION_OBTAINED_AT_KEY = f"{ENV_SESSION_TOKEN}_OBTAINED_AT"
 SESSION_EXPIRES_AT_KEY = f"{ENV_SESSION_TOKEN}_EXPIRES_AT"
@@ -59,7 +60,7 @@ class _FlushingFileHandler(logging.FileHandler):
 
 
 def _setup_logger() -> logging.Logger:
-    _LOG_DIR.mkdir(exist_ok=True)
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
     log = logging.getLogger("tick_mcp.admin")
     if not log.handlers:
         log.setLevel(logging.DEBUG)
